@@ -29,6 +29,7 @@ import {
   CheckCircle2,
   CreditCard,
   PieChart,
+  Flame,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -64,7 +65,7 @@ interface FrameItem {
   is_active: boolean;
 }
 
-type MenuKey = "overview" | "strips" | "frames" | "games" | "users" | "settings";
+type MenuKey = "overview" | "strips" | "frames" | "games_sync" | "games_likely" | "users" | "settings";
 
 // Helper generate smooth organic telemetry trend data for SaaS analytics
 function generateTrendData(metric: "users" | "photos" | "games", days: number) {
@@ -429,20 +430,41 @@ export default function DashboardPage() {
             )}
             <button
               type="button"
-              onClick={() => setActiveMenu("games")}
+              onClick={() => setActiveMenu("games_sync")}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                activeMenu === "games"
-                  ? "bg-[#FB6F92] text-white shadow-xs"
-                  : "text-[#7D7F9A] hover:text-[#2B2D42] hover:bg-pink-50/50"
+                activeMenu === "games_sync"
+                  ? "bg-[#735D96] text-white shadow-xs"
+                  : "text-[#7D7F9A] hover:text-[#2B2D42] hover:bg-purple-50/50"
               }`}
-              title="Ruang Game (Live)"
+              title="Sync or Sink (Live)"
             >
               <Gamepad2 className="size-4 shrink-0" />
               {!sidebarCollapsed && (
                 <div className="flex items-center justify-between w-full">
-                  <span>Ruang Game (Live)</span>
+                  <span>Sync or Sink (Live)</span>
                   <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-white/40 text-current">
-                    {rooms.length}
+                    {rooms.filter((r) => r.game_type === "SYNC_OR_SINK").length}
+                  </span>
+                </div>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveMenu("games_likely")}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                activeMenu === "games_likely"
+                  ? "bg-[#FB6F92] text-white shadow-xs"
+                  : "text-[#7D7F9A] hover:text-[#2B2D42] hover:bg-pink-50/50"
+              }`}
+              title="Who's Most Likely (Live)"
+            >
+              <Flame className="size-4 shrink-0" />
+              {!sidebarCollapsed && (
+                <div className="flex items-center justify-between w-full">
+                  <span>Who&apos;s Most Likely (Live)</span>
+                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-white/40 text-current">
+                    {rooms.filter((r) => r.game_type === "WHOS_MOST_LIKELY").length}
                   </span>
                 </div>
               )}
@@ -528,7 +550,8 @@ export default function DashboardPage() {
               {activeMenu === "overview" && "SaaS Platform Analytics & Telemetry"}
               {activeMenu === "strips" && "Upload & Strip Template Customizer"}
               {activeMenu === "frames" && "Katalog Tema Warna Bingkai"}
-              {activeMenu === "games" && "Live Couple Game Room Inspector"}
+              {activeMenu === "games_sync" && "Live Room Monitor: Sync or Sink"}
+              {activeMenu === "games_likely" && "Live Room Monitor: Who's Most Likely To"}
               {activeMenu === "users" && "Manajemen Akun & Role Pengguna"}
               {activeMenu === "settings" && "Konfigurasi Server & Keamanan"}
             </span>
@@ -1283,27 +1306,40 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* MENU 4: GAME ROOMS MONITOR */}
-          {activeMenu === "games" && (
-            <div className="rounded-3xl p-6 bg-white border border-border/40 shadow-sm space-y-5">
+          {/* MENU 4A: SYNC OR SINK LIVE ROOMS */}
+          {activeMenu === "games_sync" && (
+            <div className="rounded-3xl p-6 bg-white border border-[#735D96]/20 shadow-sm space-y-5">
               <div className="flex items-center justify-between border-b border-border/40 pb-3">
-                <div>
-                  <h3 className="font-display font-bold text-lg text-[#2B2D42]">
-                    Live Couple Game Rooms
-                  </h3>
-                  <p className="text-xs text-muted-foreground">
-                    Monitoring ruangan permainan kuis pasangan (Sync or Sink & Who&apos;s Most Likely To).
-                  </p>
+                <div className="flex items-center gap-3">
+                  <div className="size-10 rounded-2xl bg-[#E8DFF5] flex items-center justify-center text-[#735D96]">
+                    <Gamepad2 className="size-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-display font-bold text-lg text-[#2B2D42]">
+                      Live Monitor: Sync or Sink
+                    </h3>
+                    <p className="text-xs text-muted-foreground">
+                      Kuis sinkronisasi pilihan cepat (selera kencan, liburan, makanan).
+                    </p>
+                  </div>
                 </div>
-                <Badge variant="primary" className="font-mono text-xs">
-                  {rooms.length} ROOMS
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="font-mono text-xs border-[#735D96]/30 text-[#735D96]">
+                    {rooms.filter((r) => r.game_type === "SYNC_OR_SINK").length} ROOMS
+                  </Badge>
+                  <Link href="/games/sync" target="_blank">
+                    <Button size="sm" className="rounded-full text-xs font-bold bg-[#735D96] hover:bg-[#624D82] text-white">
+                      <span>Buka Game Sync</span>
+                      <ExternalLink className="size-3 ml-1" />
+                    </Button>
+                  </Link>
+                </div>
               </div>
 
-              {rooms.length === 0 ? (
+              {rooms.filter((r) => r.game_type === "SYNC_OR_SINK").length === 0 ? (
                 <div className="py-12 text-center text-xs text-muted-foreground space-y-2">
                   <Clock className="size-8 text-muted-foreground/40 mx-auto" />
-                  <p>Belum ada room game yang dibuat hari ini.</p>
+                  <p>Belum ada room Sync or Sink yang aktif saat ini.</p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
@@ -1311,7 +1347,6 @@ export default function DashboardPage() {
                     <thead>
                       <tr className="border-b border-border/40 text-[11px] font-mono text-muted-foreground uppercase">
                         <th className="py-3 px-3">Room Code</th>
-                        <th className="py-3 px-3">Tipe Game</th>
                         <th className="py-3 px-3">Host & Pasangan</th>
                         <th className="py-3 px-3">Status</th>
                         <th className="py-3 px-3">Skor Chemistry</th>
@@ -1319,46 +1354,139 @@ export default function DashboardPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {rooms.map((r) => (
-                        <tr key={r.id} className="border-b border-border/20 hover:bg-muted/10 transition-colors">
-                          <td className="py-3 px-3 font-mono font-black text-sm text-[#FB6F92]">
-                            {r.room_code}
-                          </td>
-                          <td className="py-3 px-3 font-semibold text-foreground">
-                            {r.game_type === "WHOS_MOST_LIKELY" ? "Who's Most Likely To" : "Sync or Sink"}
-                          </td>
-                          <td className="py-3 px-3">
-                            <span className="font-medium text-foreground">{r.host_name}</span>
-                            {r.partner_name && (
-                              <span className="text-muted-foreground"> & {r.partner_name}</span>
-                            )}
-                          </td>
-                          <td className="py-3 px-3">
-                            <span
-                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                                r.status === "PLAYING"
-                                  ? "bg-amber-100 text-amber-700"
-                                  : r.status === "COMPLETED"
-                                  ? "bg-emerald-100 text-emerald-700"
-                                  : "bg-zinc-100 text-zinc-600"
-                              }`}
-                            >
-                              {r.status}
-                            </span>
-                          </td>
-                          <td className="py-3 px-3 font-mono font-bold">
-                            {r.final_score !== null && r.final_score !== undefined
-                              ? `${r.final_score}%`
-                              : "-"}
-                          </td>
-                          <td className="py-3 px-3 text-muted-foreground font-mono">
-                            {new Date(r.expires_at).toLocaleTimeString([], {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
-                          </td>
-                        </tr>
-                      ))}
+                      {rooms
+                        .filter((r) => r.game_type === "SYNC_OR_SINK")
+                        .map((r) => (
+                          <tr key={r.id} className="border-b border-border/20 hover:bg-muted/10 transition-colors">
+                            <td className="py-3 px-3 font-mono font-black text-sm text-[#735D96]">
+                              {r.room_code}
+                            </td>
+                            <td className="py-3 px-3">
+                              <span className="font-medium text-foreground">{r.host_name}</span>
+                              {r.partner_name && (
+                                <span className="text-muted-foreground"> & {r.partner_name}</span>
+                              )}
+                            </td>
+                            <td className="py-3 px-3">
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                                  r.status === "PLAYING"
+                                    ? "bg-amber-100 text-amber-700"
+                                    : r.status === "COMPLETED"
+                                    ? "bg-emerald-100 text-emerald-700"
+                                    : "bg-zinc-100 text-zinc-600"
+                                }`}
+                              >
+                                {r.status}
+                              </span>
+                            </td>
+                            <td className="py-3 px-3 font-mono font-bold">
+                              {r.final_score !== null && r.final_score !== undefined
+                                ? `${r.final_score}%`
+                                : "-"}
+                            </td>
+                            <td className="py-3 px-3 text-muted-foreground font-mono">
+                              {new Date(r.expires_at).toLocaleTimeString([], {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* MENU 4B: WHO'S MOST LIKELY LIVE ROOMS */}
+          {activeMenu === "games_likely" && (
+            <div className="rounded-3xl p-6 bg-white border border-[#FB6F92]/20 shadow-sm space-y-5">
+              <div className="flex items-center justify-between border-b border-border/40 pb-3">
+                <div className="flex items-center gap-3">
+                  <div className="size-10 rounded-2xl bg-[#FFE5EC] flex items-center justify-center text-[#FB6F92]">
+                    <Flame className="size-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-display font-bold text-lg text-[#2B2D42]">
+                      Live Monitor: Who&apos;s Most Likely To?
+                    </h3>
+                    <p className="text-xs text-muted-foreground">
+                      Kuis tunjuk pasangan komparasi kebiasaan harian (Siapa paling boros, bangun paling siang).
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="font-mono text-xs border-[#FB6F92]/30 text-[#FB6F92]">
+                    {rooms.filter((r) => r.game_type === "WHOS_MOST_LIKELY").length} ROOMS
+                  </Badge>
+                  <Link href="/games/likely" target="_blank">
+                    <Button size="sm" className="rounded-full text-xs font-bold bg-[#FB6F92] hover:bg-[#e0567a] text-white">
+                      <span>Buka Game Tunjuk</span>
+                      <ExternalLink className="size-3 ml-1" />
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+
+              {rooms.filter((r) => r.game_type === "WHOS_MOST_LIKELY").length === 0 ? (
+                <div className="py-12 text-center text-xs text-muted-foreground space-y-2">
+                  <Clock className="size-8 text-muted-foreground/40 mx-auto" />
+                  <p>Belum ada room Who&apos;s Most Likely To yang aktif saat ini.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-border/40 text-[11px] font-mono text-muted-foreground uppercase">
+                        <th className="py-3 px-3">Room Code</th>
+                        <th className="py-3 px-3">Host & Pasangan</th>
+                        <th className="py-3 px-3">Status</th>
+                        <th className="py-3 px-3">Skor Chemistry</th>
+                        <th className="py-3 px-3">Kedaluwarsa (TTL 5 Jam)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rooms
+                        .filter((r) => r.game_type === "WHOS_MOST_LIKELY")
+                        .map((r) => (
+                          <tr key={r.id} className="border-b border-border/20 hover:bg-muted/10 transition-colors">
+                            <td className="py-3 px-3 font-mono font-black text-sm text-[#FB6F92]">
+                              {r.room_code}
+                            </td>
+                            <td className="py-3 px-3">
+                              <span className="font-medium text-foreground">{r.host_name}</span>
+                              {r.partner_name && (
+                                <span className="text-muted-foreground"> & {r.partner_name}</span>
+                              )}
+                            </td>
+                            <td className="py-3 px-3">
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                                  r.status === "PLAYING"
+                                    ? "bg-amber-100 text-amber-700"
+                                    : r.status === "COMPLETED"
+                                    ? "bg-emerald-100 text-emerald-700"
+                                    : "bg-zinc-100 text-zinc-600"
+                                }`}
+                              >
+                                {r.status}
+                              </span>
+                            </td>
+                            <td className="py-3 px-3 font-mono font-bold">
+                              {r.final_score !== null && r.final_score !== undefined
+                                ? `${r.final_score}%`
+                                : "-"}
+                            </td>
+                            <td className="py-3 px-3 text-muted-foreground font-mono">
+                              {new Date(r.expires_at).toLocaleTimeString([], {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </td>
+                          </tr>
+                        ))}
                     </tbody>
                   </table>
                 </div>
