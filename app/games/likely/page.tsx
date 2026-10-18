@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -14,7 +14,9 @@ import {
   Camera,
   RefreshCw,
   Flame,
+  Radio,
 } from "lucide-react";
+import toast from "react-hot-toast";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -47,14 +49,13 @@ export default function WhosMostLikelyPage() {
   const [roomCode, setRoomCode] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
 
   // Gameplay states
   const [currentRound, setCurrentRound] = useState(0);
   const [myChoice, setMyChoice] = useState<"ME" | "PARTNER" | null>(null);
+  const [partnerAnswered, setPartnerAnswered] = useState(false);
   const [isMatch, setIsMatch] = useState<boolean | null>(null);
   const [score, setScore] = useState(0);
-  const [matchCount, setMatchCount] = useState(0);
 
   // Auto-detect room code from URL query parameter
   useEffect(() => {
@@ -68,15 +69,65 @@ export default function WhosMostLikelyPage() {
     }
   }, []);
 
+  // REAL-TIME POLLING: Auto-start when partner connects to the room
+  useEffect(() => {
+    if (!roomCode || gameState !== "lobby") return;
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/rooms/status?code=${roomCode}`);
+        if (!res.ok) return;
+        const data = await res.json();
+
+        if (data.success && data.room) {
+          if (data.room.partnerName && (data.room.status === "PLAYING" || myRole === "HOST")) {
+            setPartnerName(data.room.partnerName);
+            toast.success(`${data.room.partnerName} telah bergabung! Permainan dimulai.`);
+            setGameState("playing");
+          }
+        }
+      } catch {
+        // Safe polling catch
+      }
+    }, 1500);
+
+    return () => clearInterval(interval);
+  }, [roomCode, gameState, myRole]);
+
+  // REAL-TIME POLLING FOR ANSWERS (Wait for both to answer current round)
+  useEffect(() => {
+    if (!roomCode || gameState !== "playing" || !myChoice) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/rooms/status?code=${roomCode}`);
+        if (!res.ok) return;
+        const data = await res.json();
+
+        if (data.success && data.room?.answers) {
+          const roundData = data.room.answers[currentRound];
+          if (roundData && roundData.completed) {
+            setIsMatch(roundData.match ?? false);
+            setScore(data.room.finalScore ?? score);
+            setGameState("reveal");
+          }
+        }
+      } catch {
+        // Safe polling catch
+      }
+    }, 1200);
+
+    return () => clearInterval(interval);
+  }, [roomCode, gameState, myChoice, currentRound, score]);
+
   // Handle Create Room
   const handleCreateRoom = async () => {
     if (!hostName.trim()) {
-      setMessage("Silakan masukkan nama panggilan Anda.");
+      toast.error("Silakan masukkan nama panggilan Anda.");
       return;
     }
 
     setLoading(true);
-    setMessage(null);
 
     try {
       const res = await fetch("/api/rooms/likely/create", {
@@ -90,8 +141,9 @@ export default function WhosMostLikelyPage() {
       setRoomCode(data.room.roomCode);
       setMyRole("HOST");
       setGameState("lobby");
+      toast.success("Ruangan berhasil dibuat! Bagikan kode ke pasangan.");
     } catch (err: any) {
-      setMessage(err.message);
+      toast.error(err.message);
     } finally {
       setLoading(false);
     }
@@ -100,12 +152,11 @@ export default function WhosMostLikelyPage() {
   // Handle Join Room
   const handleJoinRoom = async () => {
     if (!roomCodeInput.trim() || !partnerName.trim()) {
-      setMessage("Silakan lengkapi Kode Room dan nama Anda.");
+      toast.error("Silakan lengkapi Kode Room dan nama Anda.");
       return;
     }
 
     setLoading(true);
-    setMessage(null);
 
     try {
       const res = await fetch("/api/rooms/likely/join", {
@@ -121,9 +172,11 @@ export default function WhosMostLikelyPage() {
 
       setRoomCode(roomCodeInput.trim().toUpperCase());
       setMyRole("PARTNER");
+      setHostName(data.session.hostName || "Pasangan");
       setGameState("playing");
+      toast.success(`Berhasil terhubung dengan ${data.session.hostName}!`);
     } catch (err: any) {
-      setMessage(err.message);
+      toast.error(err.message);
     } finally {
       setLoading(false);
     }
@@ -134,16 +187,8 @@ export default function WhosMostLikelyPage() {
     if (!roomCode) return;
     navigator.clipboard.writeText(roomCode);
     setCopied(true);
+    toast.success("Kode ruangan berhasil disalin!");
     setTimeout(() => setCopied(false), 2000);
-  };
-
-  // Start game from lobby
-  const handleStartGame = () => {
-    setGameState("playing");
-    setCurrentRound(0);
-    setScore(0);
-    setMatchCount(0);
-    setMyChoice(null);
   };
 
   // Submit Answer
@@ -163,17 +208,17 @@ export default function WhosMostLikelyPage() {
       });
 
       const data = await res.json();
-      const match = data.isMatch !== undefined ? data.isMatch : Math.random() > 0.3;
-      setIsMatch(match);
-      if (match) {
-        setMatchCount((prev) => prev + 1);
-        setScore((prev) => prev + 10);
+      if (data.isRoundComplete) {
+        setIsMatch(data.isMatch);
+        if (data.currentScore !== undefined) {
+          setScore(data.currentScore);
+        }
+        setGameState("reveal");
+      } else {
+        toast("Pilihan tersimpan! Menunggu jawaban pasangan...", { icon: "⏳" });
       }
-      setGameState("reveal");
     } catch {
       setIsMatch(true);
-      setMatchCount((prev) => prev + 1);
-      setScore((prev) => prev + 10);
       setGameState("reveal");
     }
   };
@@ -237,11 +282,8 @@ export default function WhosMostLikelyPage() {
                     <div className="flex rounded-2xl bg-white p-1 border border-[#FB6F92]/15">
                       <button
                         type="button"
-                        onClick={() => {
-                          setTab("create");
-                          setMessage(null);
-                        }}
-                        className={`flex-1 py-2 rounded-xl text-xs font-bold transition select-none ${
+                        onClick={() => setTab("create")}
+                        className={`flex-1 py-2 rounded-xl text-xs font-bold transition select-none cursor-pointer ${
                           tab === "create"
                             ? "bg-[#FB6F92] text-white shadow-xs"
                             : "text-[#7D7F9A] hover:text-[#2B2D42]"
@@ -251,11 +293,8 @@ export default function WhosMostLikelyPage() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => {
-                          setTab("join");
-                          setMessage(null);
-                        }}
-                        className={`flex-1 py-2 rounded-xl text-xs font-bold transition select-none ${
+                        onClick={() => setTab("join")}
+                        className={`flex-1 py-2 rounded-xl text-xs font-bold transition select-none cursor-pointer ${
                           tab === "join"
                             ? "bg-[#FB6F92] text-white shadow-xs"
                             : "text-[#7D7F9A] hover:text-[#2B2D42]"
@@ -264,12 +303,6 @@ export default function WhosMostLikelyPage() {
                         Gabung Kode Pasangan
                       </button>
                     </div>
-
-                    {message && (
-                      <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-600 font-semibold text-center">
-                        {message}
-                      </div>
-                    )}
 
                     {tab === "create" ? (
                       <div className="space-y-4">
@@ -291,7 +324,7 @@ export default function WhosMostLikelyPage() {
                           onClick={handleCreateRoom}
                           disabled={loading}
                           size="lg"
-                          className="w-full rounded-2xl font-display font-bold text-sm bg-[#FB6F92] hover:bg-[#e0567a] text-white shadow-md"
+                          className="w-full rounded-2xl font-display font-bold text-sm bg-[#FB6F92] hover:bg-[#e0567a] text-white shadow-md cursor-pointer"
                         >
                           {loading ? "Membuat Ruangan..." : "Generate Kode Ruangan (TTL 5 Jam)"}
                         </Button>
@@ -330,7 +363,7 @@ export default function WhosMostLikelyPage() {
                           onClick={handleJoinRoom}
                           disabled={loading}
                           size="lg"
-                          className="w-full rounded-2xl font-display font-bold text-sm bg-[#FB6F92] hover:bg-[#e0567a] text-white shadow-md"
+                          className="w-full rounded-2xl font-display font-bold text-sm bg-[#FB6F92] hover:bg-[#e0567a] text-white shadow-md cursor-pointer"
                         >
                           {loading ? "Menghubungkan..." : "Masuk ke Ruangan"}
                         </Button>
@@ -338,7 +371,7 @@ export default function WhosMostLikelyPage() {
                     )}
                   </>
                 ) : (
-                  /* Waiting Lobby with Code */
+                  /* Waiting Lobby with Code & Live Polling Indicator */
                   <div className="space-y-5 text-center">
                     <div className="size-12 rounded-2xl bg-[#FFE5EC] border border-[#FB6F92]/30 flex items-center justify-center text-[#FB6F92] mx-auto shadow-xs">
                       <Sparkles className="size-6" />
@@ -353,24 +386,26 @@ export default function WhosMostLikelyPage() {
                         <button
                           type="button"
                           onClick={handleCopyCode}
-                          className="size-8 rounded-lg bg-pink-50 hover:bg-pink-100 text-[#FB6F92] flex items-center justify-center transition"
+                          className="size-8 rounded-lg bg-pink-50 hover:bg-pink-100 text-[#FB6F92] flex items-center justify-center transition cursor-pointer"
                           title="Salin Kode"
                         >
                           {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
                         </button>
                       </div>
-                      <p className="text-xs text-[#7D7F9A] mt-2">
-                        Bagikan kode ini ke pasangan agar bisa bergabung.
-                      </p>
+
+                      <div className="flex items-center justify-center gap-2 mt-3 text-xs text-[#7D7F9A]">
+                        <Radio className="size-3.5 text-[#FB6F92] animate-pulse" />
+                        <span>Menunggu pasangan memasukkan kode... (otomatis terhubung)</span>
+                      </div>
                     </div>
 
                     <Button
                       type="button"
-                      onClick={handleStartGame}
+                      onClick={() => setGameState("playing")}
                       size="lg"
-                      className="w-full rounded-2xl font-display font-bold text-sm bg-[#FB6F92] hover:bg-[#e0567a] text-white shadow-md"
+                      className="w-full rounded-2xl font-display font-bold text-sm bg-[#FB6F92] hover:bg-[#e0567a] text-white shadow-md cursor-pointer"
                     >
-                      Mulai Main Sekarang!
+                      Mulai Sekarang (Atau Tunggu Pasangan)
                     </Button>
                   </div>
                 )}
@@ -397,22 +432,34 @@ export default function WhosMostLikelyPage() {
               </h2>
 
               <p className="text-xs text-[#7D7F9A]">
-                Pilih secara jujur tanpa mengintip layar pasangan!
+                {myChoice
+                  ? "Pilihan Anda terkunci. Menunggu jawaban pasangan..."
+                  : "Pilih secara jujur tanpa mengintip layar pasangan!"}
               </p>
 
               {/* Two Choice Buttons */}
               <div className="grid grid-cols-2 gap-4 pt-2">
                 <button
                   type="button"
+                  disabled={myChoice !== null}
                   onClick={() => handlePickChoice("ME")}
-                  className="py-6 px-4 rounded-2xl border-2 border-[#FB6F92]/40 bg-[#FFE5EC] hover:bg-[#ffccd8] text-[#FB6F92] font-display font-black text-xl transition-all active:scale-95 shadow-sm"
+                  className={`py-6 px-4 rounded-2xl border-2 font-display font-black text-xl transition-all active:scale-95 shadow-sm cursor-pointer ${
+                    myChoice === "ME"
+                      ? "border-[#FB6F92] bg-[#FB6F92] text-white"
+                      : "border-[#FB6F92]/40 bg-[#FFE5EC] hover:bg-[#ffccd8] text-[#FB6F92]"
+                  }`}
                 >
                   AKU
                 </button>
                 <button
                   type="button"
+                  disabled={myChoice !== null}
                   onClick={() => handlePickChoice("PARTNER")}
-                  className="py-6 px-4 rounded-2xl border-2 border-[#735D96]/40 bg-[#E8DFF5] hover:bg-[#d8c8ee] text-[#735D96] font-display font-black text-xl transition-all active:scale-95 shadow-sm"
+                  className={`py-6 px-4 rounded-2xl border-2 font-display font-black text-xl transition-all active:scale-95 shadow-sm cursor-pointer ${
+                    myChoice === "PARTNER"
+                      ? "border-[#735D96] bg-[#735D96] text-white"
+                      : "border-[#735D96]/40 bg-[#E8DFF5] hover:bg-[#d8c8ee] text-[#735D96]"
+                  }`}
                 >
                   DIA
                 </button>
@@ -455,7 +502,7 @@ export default function WhosMostLikelyPage() {
                 type="button"
                 onClick={handleNextRound}
                 size="lg"
-                className="w-full rounded-2xl font-display font-bold text-sm bg-[#FB6F92] hover:bg-[#e0567a] text-white shadow-md"
+                className="w-full rounded-2xl font-display font-bold text-sm bg-[#FB6F92] hover:bg-[#e0567a] text-white shadow-md cursor-pointer"
               >
                 {currentRound + 1 >= QUESTIONS.length ? "Lihat Skor Akhir" : "Lanjut Ronde Berikutnya"}
               </Button>
@@ -492,7 +539,7 @@ export default function WhosMostLikelyPage() {
                 <Link href="/booth?badge=likely">
                   <Button
                     size="lg"
-                    className="w-full rounded-2xl font-display font-bold text-sm bg-[#FB6F92] hover:bg-[#e0567a] text-white shadow-md gap-2"
+                    className="w-full rounded-2xl font-display font-bold text-sm bg-[#FB6F92] hover:bg-[#e0567a] text-white shadow-md gap-2 cursor-pointer"
                   >
                     <Camera className="size-4" />
                     <span>Cetak Skor Ini ke Photo Strip Studio</span>
@@ -506,7 +553,7 @@ export default function WhosMostLikelyPage() {
                     setGameState("lobby");
                     setRoomCode(null);
                   }}
-                  className="w-full rounded-2xl text-xs font-semibold"
+                  className="w-full rounded-2xl text-xs font-semibold cursor-pointer"
                 >
                   <RefreshCw className="size-3.5 mr-2" />
                   <span>Main Lagi dari Awal</span>

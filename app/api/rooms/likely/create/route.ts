@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { generateRoomCode, calculateExpirationDate } from "@/lib/room-code";
-import { prisma } from "@/lib/db";
+import { createRoom } from "@/lib/room-store";
 
 export const dynamic = "force-dynamic";
 
@@ -16,41 +15,18 @@ export async function POST(req: Request) {
       );
     }
 
-    const roomCode = generateRoomCode();
-    const expiresAt = calculateExpirationDate();
-
-    // Persist room to PostgreSQL via Prisma if available, with in-memory safe fallback
-    let savedRoom = null;
-    try {
-      savedRoom = await prisma.gameRoom.create({
-        data: {
-          room_code: roomCode,
-          host_name: hostName.trim(),
-          host_user_id: hostUserId || null,
-          game_type: "WHOS_MOST_LIKELY",
-          status: "WAITING",
-          expires_at: expiresAt,
-          answers_json: {
-            round: 0,
-            rounds: {},
-            totalRounds: 10,
-          },
-        },
-      });
-    } catch {
-      // Ephemeral fallback if DB is in migration
-    }
+    const room = await createRoom(hostName.trim(), "WHOS_MOST_LIKELY", hostUserId);
 
     return NextResponse.json({
       success: true,
       room: {
-        roomCode,
-        hostName: hostName.trim(),
-        gameType: "WHOS_MOST_LIKELY",
-        status: "WAITING",
-        expiresAt: expiresAt.toISOString(),
+        roomCode: room.roomCode,
+        hostName: room.hostName,
+        gameType: room.gameType,
+        status: room.status,
+        expiresAt: room.expiresAt.toISOString(),
         ttlHours: 5,
-        shareUrl: `https://fun.fizaa.me/games/likely?code=${roomCode}`,
+        shareUrl: `https://fun.fizaa.me/games/likely?code=${room.roomCode}`,
       },
     });
   } catch (err: any) {

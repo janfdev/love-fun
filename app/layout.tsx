@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Outfit, Plus_Jakarta_Sans, Space_Mono } from 'next/font/google';
 import './globals.css';
+import { ToastProvider } from '@/components/providers/toast-provider';
 
 const outfit = Outfit({
   subsets: ['latin'],
@@ -41,6 +42,7 @@ export default function RootLayout({
   return (
     <html lang="id" className={`${outfit.variable} ${plusJakarta.variable} ${spaceMono.variable}`}>
       <body className="min-h-screen bg-[#FFF9FB] text-[#2B2D42] font-sans antialiased selection:bg-[#FB6F92] selection:text-white">
+        <ToastProvider />
         {children}
       </body>
     </html>

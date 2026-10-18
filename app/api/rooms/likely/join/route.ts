@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { joinRoom } from "@/lib/room-store";
 
 export const dynamic = "force-dynamic";
 
@@ -19,40 +19,22 @@ export async function POST(req: Request) {
       );
     }
 
-    const normalizedCode = roomCode.trim().toUpperCase();
-
-    // Check in database
-    let room = null;
-    try {
-      room = await prisma.gameRoom.findUnique({
-        where: { room_code: normalizedCode },
-      });
-
-      if (room) {
-        if (new Date() > new Date(room.expires_at)) {
-          return NextResponse.json({ error: "Sesi room ini sudah kedaluwarsa." }, { status: 410 });
-        }
-
-        // Update partner name & status to PLAYING
-        room = await prisma.gameRoom.update({
-          where: { room_code: normalizedCode },
-          data: {
-            partner_name: partnerName.trim(),
-            status: "PLAYING",
-          },
-        });
-      }
-    } catch {
-      // Fallback
+    const session = await joinRoom(roomCode, partnerName.trim());
+    if (!session) {
+      return NextResponse.json(
+        { error: "Ruangan tidak ditemukan atau sudah kedaluwarsa. Periksa kembali kode room Anda." },
+        { status: 404 }
+      );
     }
 
     return NextResponse.json({
       success: true,
       session: {
-        roomCode: normalizedCode,
-        hostName: room?.host_name || "Pasangan Kamu",
-        partnerName: partnerName.trim(),
-        status: "PLAYING",
+        roomCode: session.roomCode,
+        hostName: session.hostName,
+        partnerName: session.partnerName,
+        gameType: session.gameType,
+        status: session.status,
         message: "Berhasil terhubung ke ruang bermain!",
       },
     });
