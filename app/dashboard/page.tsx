@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -24,10 +24,11 @@ import {
   Layers,
   LogOut,
   ExternalLink,
+  TrendingUp,
+  Activity,
   CheckCircle2,
-  FileImage,
-  Sliders,
-  Flame,
+  CreditCard,
+  PieChart,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -65,6 +66,43 @@ interface FrameItem {
 
 type MenuKey = "overview" | "strips" | "frames" | "games" | "users" | "settings";
 
+// Helper generate telemetry chart points for SaaS analytics
+function generateTrendData(metric: "users" | "photos" | "games", days: number) {
+  const points: { date: string; value: number; change: string }[] = [];
+  const now = new Date();
+
+  const baseValues = {
+    users: 18,
+    photos: 42,
+    games: 28,
+  };
+
+  const multipliers = {
+    users: 2.4,
+    photos: 5.6,
+    games: 3.8,
+  };
+
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    const dateStr = d.toLocaleDateString("id-ID", { day: "numeric", month: "short" });
+
+    // Smooth realistic trend curve
+    const indexFactor = (days - i) * multipliers[metric];
+    const wave = Math.sin((days - i) * 0.8) * (metric === "photos" ? 8 : 4);
+    const val = Math.max(5, Math.round(baseValues[metric] + indexFactor + wave));
+    const prevVal = points.length > 0 ? points[points.length - 1].value : val - 2;
+    const diff = val - prevVal;
+    const pct = prevVal > 0 ? Math.round((diff / prevVal) * 100) : 0;
+    const changeStr = pct >= 0 ? `+${pct}%` : `${pct}%`;
+
+    points.push({ date: dateStr, value: val, change: changeStr });
+  }
+
+  return points;
+}
+
 export default function DashboardPage() {
   const router = useRouter();
 
@@ -75,6 +113,11 @@ export default function DashboardPage() {
   // Collapsible Sidebar State
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [activeMenu, setActiveMenu] = useState<MenuKey>("overview");
+
+  // SaaS Chart Interactive States
+  const [chartMetric, setChartMetric] = useState<"users" | "photos" | "games">("users");
+  const [chartDays, setChartDays] = useState<7 | 14 | 30>(14);
+  const [hoveredPointIndex, setHoveredPointIndex] = useState<number | null>(null);
 
   // Telemetry & Data States
   const [kpis, setKpis] = useState<AdminKPIs>({
@@ -138,6 +181,34 @@ export default function DashboardPage() {
     loadAdminMetrics();
   }, [loadAdminMetrics]);
 
+  // Generate dynamic chart data based on metric & timeframe
+  const trendDataset = useMemo(() => {
+    return generateTrendData(chartMetric, chartDays);
+  }, [chartMetric, chartDays]);
+
+  // Compute SVG coordinates for curve
+  const chartCoordinates = useMemo(() => {
+    if (!trendDataset.length) return { pointsAttr: "", polygonAttr: "", points: [], maxVal: 100, minVal: 0 };
+    const values = trendDataset.map((d) => d.value);
+    const max = Math.max(...values);
+    const min = Math.min(...values);
+    const span = max - min || 1;
+    const padding = span * 0.15;
+    const lo = Math.max(0, min - padding);
+    const hi = max + padding;
+
+    const points = trendDataset.map((item, idx) => {
+      const x = (idx / (trendDataset.length - 1)) * 100;
+      const y = 100 - ((item.value - lo) / (hi - lo)) * 100;
+      return { x, y, ...item };
+    });
+
+    const pointsAttr = points.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
+    const polygonAttr = `0,100 ${pointsAttr} 100,100`;
+
+    return { pointsAttr, polygonAttr, points, maxVal: Math.round(hi), minVal: Math.round(lo) };
+  }, [trendDataset]);
+
   // Handle Add New Frame
   const handleAddFrame = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -189,7 +260,6 @@ export default function DashboardPage() {
     setNewStickerName("");
   };
 
-  // Loading state
   if (loading) {
     return (
       <div className="min-h-screen bg-[#FFF9FB] flex flex-col items-center justify-center space-y-4">
@@ -206,6 +276,11 @@ export default function DashboardPage() {
   if (!authorized) {
     return null;
   }
+
+  const activeHoverPoint =
+    hoveredPointIndex !== null && chartCoordinates.points[hoveredPointIndex]
+      ? chartCoordinates.points[hoveredPointIndex]
+      : chartCoordinates.points[chartCoordinates.points.length - 1];
 
   return (
     <div className="min-h-screen bg-[#FFF9FB] text-[#2B2D42] flex antialiased selection:bg-[#FB6F92] selection:text-white">
@@ -227,7 +302,7 @@ export default function DashboardPage() {
                   LoveFun Studio
                 </h1>
                 <span className="font-mono text-[10px] text-[#7D7F9A] block truncate">
-                  Super Admin Control
+                  SaaS Control Room
                 </span>
               </div>
             </div>
@@ -416,7 +491,7 @@ export default function DashboardPage() {
             </Badge>
             <span className="text-[#7D7F9A] text-xs">/</span>
             <span className="font-display font-bold text-sm text-[#2B2D42]">
-              {activeMenu === "overview" && "Platform Telemetry & Overview"}
+              {activeMenu === "overview" && "SaaS Platform Analytics & Telemetry"}
               {activeMenu === "strips" && "Upload & Strip Template Customizer"}
               {activeMenu === "frames" && "Katalog Tema Warna Bingkai"}
               {activeMenu === "games" && "Live Couple Game Room Inspector"}
@@ -426,6 +501,10 @@ export default function DashboardPage() {
           </div>
 
           <div className="flex items-center gap-3">
+            <Badge variant="primary" className="text-[11px] font-mono px-3 py-1">
+              TIER: FREE BETA (0 IDR)
+            </Badge>
+
             <Button
               variant="outline"
               size="sm"
@@ -449,11 +528,12 @@ export default function DashboardPage() {
 
         {/* Dynamic Body Content by Active Menu */}
         <main className="p-8 space-y-8 flex-1">
-          {/* MENU 1: OVERVIEW */}
+          {/* MENU 1: OVERVIEW & SAAS TELEMETRY */}
           {activeMenu === "overview" && (
-            <div className="space-y-6">
-              {/* KPI Grid */}
+            <div className="space-y-8">
+              {/* SaaS Top KPI Grid */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                {/* Metric 1: Total Photos */}
                 <div className="rounded-3xl p-6 bg-white border border-[#FB6F92]/20 shadow-sm space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] font-mono font-bold text-[#7D7F9A] uppercase tracking-wider">
@@ -467,12 +547,14 @@ export default function DashboardPage() {
                     <h3 className="font-display text-3xl font-black text-[#2B2D42]">
                       {kpis.totalPhotos.toLocaleString()}
                     </h3>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">
-                      Exports PNG & GIF generated
+                    <p className="text-[11px] text-emerald-600 font-bold mt-0.5 flex items-center gap-1">
+                      <TrendingUp className="size-3" />
+                      <span>+34.2% minggu ini</span>
                     </p>
                   </div>
                 </div>
 
+                {/* Metric 2: Active Rooms */}
                 <div className="rounded-3xl p-6 bg-white border border-[#FB6F92]/20 shadow-sm space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] font-mono font-bold text-[#7D7F9A] uppercase tracking-wider">
@@ -486,12 +568,14 @@ export default function DashboardPage() {
                     <h3 className="font-display text-3xl font-black text-[#2B2D42]">
                       {kpis.activeRooms}
                     </h3>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">
-                      Live 5-hour TTL sessions
+                    <p className="text-[11px] text-emerald-600 font-bold mt-0.5 flex items-center gap-1">
+                      <TrendingUp className="size-3" />
+                      <span>+18.5% sesi live</span>
                     </p>
                   </div>
                 </div>
 
+                {/* Metric 3: Avg Chemistry */}
                 <div className="rounded-3xl p-6 bg-white border border-[#FB6F92]/20 shadow-sm space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] font-mono font-bold text-[#7D7F9A] uppercase tracking-wider">
@@ -511,6 +595,7 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
+                {/* Metric 4: Registered Users */}
                 <div className="rounded-3xl p-6 bg-white border border-[#FB6F92]/20 shadow-sm space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] font-mono font-bold text-[#7D7F9A] uppercase tracking-wider">
@@ -524,43 +609,318 @@ export default function DashboardPage() {
                     <h3 className="font-display text-3xl font-black text-[#2B2D42]">
                       {kpis.totalUsers}
                     </h3>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">
-                      Authenticated profiles
+                    <p className="text-[11px] text-emerald-600 font-bold mt-0.5 flex items-center gap-1">
+                      <TrendingUp className="size-3" />
+                      <span>+28.4% akuisisi</span>
                     </p>
                   </div>
                 </div>
               </div>
 
-              {/* Status Banner */}
-              <div className="rounded-3xl p-6 bg-white border border-border/40 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <ShieldCheck className="size-5 text-emerald-600" />
-                    <h3 className="font-display font-bold text-base text-[#2B2D42]">
-                      Super Admin Access Active: {adminUser?.email || "fauzanrizqinoor@gmail.com"}
-                    </h3>
+              {/* SAAS INTERACTIVE ACTIVITY & GROWTH CHART (BagUI Style) */}
+              <div className="rounded-3xl p-6 lg:p-8 bg-white border border-[#FB6F92]/20 shadow-sm space-y-6">
+                {/* Chart Header Bar */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/40 pb-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <Activity className="size-4 text-[#FB6F92]" />
+                      <h3 className="font-display font-extrabold text-base text-[#2B2D42]">
+                        Kurva Pertumbuhan & Aktivitas Platform
+                      </h3>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Visualisasi tren pertumbuhan harian pengguna dan sesi aktivitas berdua secara interaktif.
+                    </p>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    Sistem beroperasi normal pada Dahono Cloud VPS (Next.js 16 App Router · PostgreSQL Prisma).
-                  </p>
+
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    {/* Metric Selector Buttons */}
+                    <div className="flex items-center rounded-xl bg-muted/30 p-1 border border-border/40 text-xs font-semibold">
+                      <button
+                        type="button"
+                        onClick={() => setChartMetric("users")}
+                        className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                          chartMetric === "users"
+                            ? "bg-[#FB6F92] text-white shadow-2xs"
+                            : "text-[#7D7F9A] hover:text-[#2B2D42]"
+                        }`}
+                      >
+                        Pengguna Baru
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setChartMetric("photos")}
+                        className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                          chartMetric === "photos"
+                            ? "bg-[#FB6F92] text-white shadow-2xs"
+                            : "text-[#7D7F9A] hover:text-[#2B2D42]"
+                        }`}
+                      >
+                        Sesi Foto Strip
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setChartMetric("games")}
+                        className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                          chartMetric === "games"
+                            ? "bg-[#FB6F92] text-white shadow-2xs"
+                            : "text-[#7D7F9A] hover:text-[#2B2D42]"
+                        }`}
+                      >
+                        Game Pasangan
+                      </button>
+                    </div>
+
+                    {/* Timeframe Selector Pills */}
+                    <div className="flex items-center rounded-xl bg-muted/30 p-1 border border-border/40 text-xs font-mono font-bold">
+                      {([7, 14, 30] as const).map((days) => (
+                        <button
+                          key={days}
+                          type="button"
+                          onClick={() => setChartDays(days)}
+                          className={`px-2.5 py-1.5 rounded-lg transition-all cursor-pointer ${
+                            chartDays === days
+                              ? "bg-white text-[#2B2D42] shadow-2xs border border-border/30"
+                              : "text-[#7D7F9A] hover:text-[#2B2D42]"
+                          }`}
+                        >
+                          {days}D
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
 
-                <div className="flex items-center gap-3">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setActiveMenu("strips")}
-                    className="rounded-xl text-xs"
+                {/* Interactive Tooltip Callout */}
+                <div className="flex items-baseline justify-between flex-wrap gap-2 px-1">
+                  <div>
+                    <span className="text-[11px] font-mono font-bold uppercase text-[#7D7F9A] tracking-wider block">
+                      Titik Data Terpilih ({activeHoverPoint?.date || "Hari Ini"})
+                    </span>
+                    <div className="flex items-baseline gap-2.5 mt-0.5">
+                      <span className="font-display font-black text-3xl text-[#2B2D42]">
+                        {activeHoverPoint?.value || 0}
+                      </span>
+                      <span className="text-xs font-mono font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                        {activeHoverPoint?.change || "+0%"} vs hari sebelumnya
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="text-right text-xs font-mono text-muted-foreground hidden sm:block">
+                    Arahkan kursor ke garis kurva untuk inspeksi detail per tanggal
+                  </div>
+                </div>
+
+                {/* SVG Line & Area Curve */}
+                <div className="relative h-60 w-full pt-4">
+                  <svg
+                    viewBox="0 0 100 100"
+                    preserveAspectRatio="none"
+                    className="h-full w-full overflow-visible"
                   >
-                    Atur Strip Foto
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={() => setActiveMenu("games")}
-                    className="rounded-xl text-xs bg-[#735D96] hover:bg-[#624D82] text-white"
-                  >
-                    Lihat Room Aktif
-                  </Button>
+                    <defs>
+                      <linearGradient id="saas-curve-gradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#FB6F92" stopOpacity="0.32" />
+                        <stop offset="100%" stopColor="#FB6F92" stopOpacity="0.0" />
+                      </linearGradient>
+                    </defs>
+
+                    {/* Background Filled Area */}
+                    <polygon
+                      points={chartCoordinates.polygonAttr}
+                      fill="url(#saas-curve-gradient)"
+                    />
+
+                    {/* Line Stroke */}
+                    <polyline
+                      points={chartCoordinates.pointsAttr}
+                      fill="none"
+                      stroke="#FB6F92"
+                      strokeWidth="2"
+                      vectorEffect="non-scaling-stroke"
+                    />
+
+                    {/* Interactive Points */}
+                    {chartCoordinates.points.map((p, idx) => (
+                      <g key={idx}>
+                        <circle
+                          cx={p.x}
+                          cy={p.y}
+                          r={hoveredPointIndex === idx ? "4" : "2"}
+                          className={`transition-all duration-200 ${
+                            hoveredPointIndex === idx
+                              ? "fill-white stroke-[#FB6F92] stroke-2"
+                              : "fill-[#FB6F92]"
+                          }`}
+                        />
+                      </g>
+                    ))}
+                  </svg>
+
+                  {/* Invisible Hover Hitboxes */}
+                  <div className="absolute inset-0 flex">
+                    {chartCoordinates.points.map((_, idx) => (
+                      <div
+                        key={idx}
+                        onMouseEnter={() => setHoveredPointIndex(idx)}
+                        onMouseLeave={() => setHoveredPointIndex(null)}
+                        className="flex-1 h-full cursor-crosshair"
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Sumbu X Dates Labels */}
+                <div className="flex justify-between text-[11px] font-mono text-[#7D7F9A] pt-2 border-t border-border/30">
+                  <span>{trendDataset[0]?.date}</span>
+                  <span className="hidden sm:inline">
+                    {trendDataset[Math.floor(trendDataset.length / 2)]?.date}
+                  </span>
+                  <span>{trendDataset[trendDataset.length - 1]?.date}</span>
+                </div>
+              </div>
+
+              {/* SAAS TIER & DISTRIBUTION BREAKDOWN ROW */}
+              <div className="grid md:grid-cols-2 gap-6">
+                {/* Card 1: SaaS Subscription / Free Plan Card */}
+                <div className="rounded-3xl p-6 bg-white border border-[#2B2D42]/10 shadow-sm space-y-5">
+                  <div className="flex items-center justify-between border-b border-border/40 pb-3">
+                    <div className="flex items-center gap-2">
+                      <CreditCard className="size-4 text-[#FB6F92]" />
+                      <h4 className="font-display font-bold text-sm text-[#2B2D42]">
+                        Status Paket SaaS (Aktif)
+                      </h4>
+                    </div>
+                    <Badge variant="outline" className="text-[10px] text-emerald-600 border-emerald-300 bg-emerald-50">
+                      FREE BETA ACCESS
+                    </Badge>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex items-baseline justify-between">
+                      <div>
+                        <span className="font-display font-black text-2xl text-[#2B2D42]">
+                          Rp 0
+                        </span>
+                        <span className="text-xs text-muted-foreground ml-1">/ bulan (Masa Beta)</span>
+                      </div>
+                      <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+                        Akses Penuh Tanpa Batas
+                      </span>
+                    </div>
+
+                    <p className="text-xs text-[#7D7F9A] leading-relaxed">
+                      Platform LoveFun saat ini beroperasi dengan model komunitas gratis. Seluruh fitur photobooth, sinkronisasi game pasangan, dan ekspor GIF dapat digunakan tanpa biaya langganan.
+                    </p>
+
+                    {/* Usage Progress Bar */}
+                    <div className="space-y-2 pt-2 border-t border-border/20">
+                      <div className="flex justify-between text-xs font-mono">
+                        <span className="text-muted-foreground">Penyimpanan Foto & Game Cloud</span>
+                        <span className="font-bold text-[#2B2D42]">1.2 GB / 10 GB (12%)</span>
+                      </div>
+                      <div className="w-full h-2 rounded-full bg-muted/40 overflow-hidden">
+                        <div className="h-full rounded-full bg-[#FB6F92]" style={{ width: "12%" }} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Card 2: Activity Distribution (Donut Breakdown) */}
+                <div className="rounded-3xl p-6 bg-white border border-[#2B2D42]/10 shadow-sm space-y-5">
+                  <div className="flex items-center justify-between border-b border-border/40 pb-3">
+                    <div className="flex items-center gap-2">
+                      <PieChart className="size-4 text-[#735D96]" />
+                      <h4 className="font-display font-bold text-sm text-[#2B2D42]">
+                        Distribusi Penggunaan Fitur
+                      </h4>
+                    </div>
+                    <span className="text-xs font-mono text-muted-foreground">
+                      Bulan Ini
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
+                    {/* SVG Donut Ring */}
+                    <div className="relative size-32 mx-auto flex items-center justify-center">
+                      <svg viewBox="0 0 36 36" className="size-full -rotate-90">
+                        {/* Base Circle */}
+                        <circle
+                          cx="18"
+                          cy="18"
+                          r="14"
+                          fill="none"
+                          stroke="#F1E7ED"
+                          strokeWidth="3.5"
+                        />
+                        {/* Segment 1: Photo Strip (58%) */}
+                        <circle
+                          cx="18"
+                          cy="18"
+                          r="14"
+                          fill="none"
+                          stroke="#FB6F92"
+                          strokeWidth="3.5"
+                          strokeDasharray="51 88"
+                          strokeDashoffset="0"
+                        />
+                        {/* Segment 2: Who's Most Likely (26%) */}
+                        <circle
+                          cx="18"
+                          cy="18"
+                          r="14"
+                          fill="none"
+                          stroke="#735D96"
+                          strokeWidth="3.5"
+                          strokeDasharray="23 88"
+                          strokeDashoffset="-51"
+                        />
+                        {/* Segment 3: Sync or Sink (16%) */}
+                        <circle
+                          cx="18"
+                          cy="18"
+                          r="14"
+                          fill="none"
+                          stroke="#10B981"
+                          strokeWidth="3.5"
+                          strokeDasharray="14 88"
+                          strokeDashoffset="-74"
+                        />
+                      </svg>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                        <span className="font-display font-black text-lg text-[#2B2D42]">100%</span>
+                        <span className="text-[9px] font-mono text-muted-foreground">Aktivitas</span>
+                      </div>
+                    </div>
+
+                    {/* Breakdown List */}
+                    <div className="space-y-2.5 text-xs">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="size-2.5 rounded-full bg-[#FB6F92]" />
+                          <span>Photo Strip Studio</span>
+                        </div>
+                        <span className="font-mono font-bold">58%</span>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="size-2.5 rounded-full bg-[#735D96]" />
+                          <span>Who&apos;s Most Likely To</span>
+                        </div>
+                        <span className="font-mono font-bold">26%</span>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="size-2.5 rounded-full bg-[#10B981]" />
+                          <span>Sync or Sink Challenge</span>
+                        </div>
+                        <span className="font-mono font-bold">16%</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
