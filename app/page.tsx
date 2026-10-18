@@ -19,7 +19,7 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-[#FFF9FB] text-[#2B2D42] flex flex-col justify-between selection:bg-[#FB6F92] selection:text-white">
       {/* Top Floating Island Header */}
-      <header className="sticky top-4 z-40 max-w-5xl w-full mx-auto px-4">
+      <header className="sticky top-4 z-40 max-w-4xl w-full mx-auto px-4 sm:px-6">
         <div className="rounded-full bg-white/85 backdrop-blur-md border border-[#FB6F92]/20 px-6 py-3.5 flex items-center justify-between shadow-sm shadow-[#FB6F92]/5">
           <div className="flex items-center gap-3">
             <div className="size-9 rounded-full bg-[#FFE5EC] border border-[#FB6F92]/30 flex items-center justify-center text-[#FB6F92]">
@@ -47,9 +47,9 @@ export default function HomePage() {
         </div>
       </header>
 
-      {/* Hero Section */}
-      <main className="max-w-6xl w-full mx-auto px-5 lg:px-8 pt-8 pb-12 space-y-12">
-        <div className="text-center max-w-2xl mx-auto space-y-4">
+      {/* Hero Section (Focused & Constrained Margin) */}
+      <main className="max-w-4xl w-full mx-auto px-4 sm:px-6 pt-8 pb-16 space-y-12">
+        <div className="text-center max-w-xl mx-auto space-y-4">
           <Badge variant="primary" className="rounded-full py-1.5 px-4 text-xs font-semibold">
             <Sparkles className="size-3.5 text-[#FB6F92]" />
             <span className="font-mono tracking-wider text-[11px] uppercase">
@@ -83,7 +83,7 @@ export default function HomePage() {
         </div>
 
         {/* 2 Main Portal Cards (Side-by-Side Bento) */}
-        <div className="grid md:grid-cols-2 gap-6 max-w-5xl mx-auto">
+        <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
           {/* Card 1: Photobooth Studio */}
           <div className="rounded-[2.25rem] p-3 bg-white/90 border border-[#FB6F92]/25 shadow-xl shadow-[#FB6F92]/10 backdrop-blur-md flex flex-col justify-between group hover:border-[#FB6F92]/50 transition duration-300">
             <div className="rounded-[1.75rem] p-6 bg-[#FFF0F4] border border-[#FB6F92]/20 space-y-4 flex-1 flex flex-col justify-between">
@@ -175,7 +175,7 @@ export default function HomePage() {
         </div>
 
         {/* Feature Highlights Grid */}
-        <div className="grid sm:grid-cols-3 gap-5 max-w-5xl mx-auto pt-4">
+        <div className="grid sm:grid-cols-3 gap-5 max-w-4xl mx-auto pt-4">
           <Card doubleBezel className="space-y-2">
             <div className="size-9 rounded-xl bg-[#FFE5EC] flex items-center justify-center text-[#FB6F92]">
               <Layers className="size-5" />
@@ -209,7 +209,7 @@ export default function HomePage() {
       </main>
 
       {/* Footer */}
-      <footer className="max-w-6xl w-full mx-auto px-5 lg:px-8 py-8 border-t border-[#FB6F92]/15 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-mono text-[#7D7F9A]">
+      <footer className="max-w-4xl w-full mx-auto px-4 sm:px-6 py-8 border-t border-[#FB6F92]/15 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-mono text-[#7D7F9A]">
         <div className="flex items-center gap-2">
           <Heart className="size-3.5 fill-[#FB6F92] text-[#FB6F92]" />
           <span className="font-sans">LoveFun · Love is Fun for Couples</span>

@@ -177,53 +177,51 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-[#FFF9FB] text-[#2B2D42] flex flex-col justify-between selection:bg-[#FB6F92] selection:text-white">
-      {/* Top Header Navigation */}
-      <header className="sticky top-3 z-40 max-w-6xl w-full mx-auto px-4 py-2">
-        <div className="rounded-full bg-white/85 backdrop-blur-md border border-[#2B2D42]/15 px-6 py-3 flex items-center justify-between shadow-xs">
-          <div className="flex items-center gap-3">
-            <Link
-              href="/"
-              className="inline-flex items-center gap-2 text-xs font-semibold text-[#7D7F9A] hover:text-[#2B2D42] transition"
-            >
-              <ArrowLeft className="size-4" />
-              <span className="hidden sm:inline">Beranda</span>
-            </Link>
-            <span className="text-[#7D7F9A] hidden sm:inline">/</span>
-            <div className="flex items-center gap-2">
-              <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="font-display font-extrabold text-sm text-[#2B2D42]">
-                LoveFun Studio Control
-              </span>
-            </div>
-          </div>
-
+      {/* Top Header Navigation (Full Desktop) */}
+      <header className="sticky top-0 z-40 w-full bg-white/90 backdrop-blur-md border-b border-[#FB6F92]/20 px-6 lg:px-12 py-3.5 flex items-center justify-between shadow-2xs">
+        <div className="flex items-center gap-4">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-2 text-xs font-semibold text-[#7D7F9A] hover:text-[#2B2D42] transition"
+          >
+            <ArrowLeft className="size-4" />
+            <span className="hidden sm:inline">Kembali ke Beranda</span>
+          </Link>
+          <span className="text-[#7D7F9A] hidden sm:inline">/</span>
           <div className="flex items-center gap-2.5">
-            <Badge variant="primary" className="font-mono text-[10px] hidden md:inline-flex">
-              SUPER ADMIN: {adminUser?.email || "fauzanrizqinoor@gmail.com"}
-            </Badge>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={loadAdminMetrics}
-              disabled={refreshing}
-              className="rounded-full text-xs"
-            >
-              <RefreshCw className={`size-3.5 ${refreshing ? "animate-spin" : ""}`} />
-              <span className="hidden sm:inline">Refresh</span>
-            </Button>
-
-            <Link href="/api/auth/logout">
-              <Button variant="ghost" size="sm" className="rounded-full text-xs text-red-500 hover:text-red-600 hover:bg-red-50">
-                <LogOut className="size-3.5" />
-              </Button>
-            </Link>
+            <span className="size-2.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="font-display font-extrabold text-base text-[#2B2D42]">
+              LoveFun Studio Control
+            </span>
           </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <Badge variant="primary" className="font-mono text-[11px] hidden md:inline-flex">
+            SUPER ADMIN: {adminUser?.email || "fauzanrizqinoor@gmail.com"}
+          </Badge>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={loadAdminMetrics}
+            disabled={refreshing}
+            className="rounded-full text-xs font-semibold"
+          >
+            <RefreshCw className={`size-3.5 mr-1.5 ${refreshing ? "animate-spin" : ""}`} />
+            <span>Refresh Data</span>
+          </Button>
+
+          <Link href="/api/auth/logout">
+            <Button variant="ghost" size="sm" className="rounded-full text-xs text-red-500 hover:text-red-600 hover:bg-red-50">
+              <LogOut className="size-3.5" />
+            </Button>
+          </Link>
         </div>
       </header>
 
-      {/* Main Admin Dashboard Body */}
-      <main className="max-w-6xl w-full mx-auto px-5 lg:px-8 py-6 flex-1 space-y-8">
+      {/* Main Admin Dashboard Body (Full Desktop) */}
+      <main className="w-full px-6 lg:px-12 py-8 flex-1 space-y-8">
         {/* Navigation Tabs (BagUI Pill Design) */}
         <div className="flex items-center justify-between border-b border-[#FB6F92]/20 pb-4 flex-wrap gap-4">
           <div className="flex items-center gap-2 bg-white/80 p-1.5 rounded-2xl border border-[#FB6F92]/15 shadow-2xs">
@@ -648,8 +646,8 @@ export default function DashboardPage() {
         )}
       </main>
 
-      {/* Footer Strip */}
-      <footer className="max-w-6xl w-full mx-auto px-5 lg:px-8 py-6 border-t border-[#FB6F92]/15 flex items-center justify-between text-xs font-mono text-[#7D7F9A]">
+      {/* Footer Strip (Full Desktop) */}
+      <footer className="w-full px-6 lg:px-12 py-5 border-t border-[#FB6F92]/15 flex items-center justify-between text-xs font-mono text-[#7D7F9A]">
         <span>LoveFun Control Room // Super Admin Verified</span>
         <span>fauzanrizqinoor@gmail.com</span>
       </footer>
