@@ -66,33 +66,32 @@ interface FrameItem {
 
 type MenuKey = "overview" | "strips" | "frames" | "games" | "users" | "settings";
 
-// Helper generate telemetry chart points for SaaS analytics
+// Helper generate smooth organic telemetry trend data for SaaS analytics
 function generateTrendData(metric: "users" | "photos" | "games", days: number) {
   const points: { date: string; value: number; change: string }[] = [];
   const now = new Date();
 
-  const baseValues = {
-    users: 18,
-    photos: 42,
-    games: 28,
+  // Natural growth parameters: progressive upward trend with gentle organic waves
+  const baselines = {
+    users: { start: 18, end: 72, variance: 4 },
+    photos: { start: 36, end: 168, variance: 8 },
+    games: { start: 16, end: 88, variance: 5 },
   };
 
-  const multipliers = {
-    users: 2.4,
-    photos: 5.6,
-    games: 3.8,
-  };
+  const { start, end, variance } = baselines[metric];
 
   for (let i = days - 1; i >= 0; i--) {
+    const progress = (days - 1 - i) / (days - 1 || 1);
     const d = new Date(now);
     d.setDate(d.getDate() - i);
     const dateStr = d.toLocaleDateString("id-ID", { day: "numeric", month: "short" });
 
-    // Smooth realistic trend curve
-    const indexFactor = (days - i) * multipliers[metric];
-    const wave = Math.sin((days - i) * 0.8) * (metric === "photos" ? 8 : 4);
-    const val = Math.max(5, Math.round(baseValues[metric] + indexFactor + wave));
-    const prevVal = points.length > 0 ? points[points.length - 1].value : val - 2;
+    // Smooth monotonic trend with gentle organic waves
+    const baseVal = start + (end - start) * Math.pow(progress, 1.15);
+    const wave = Math.sin(progress * Math.PI * 3.5) * variance;
+    const val = Math.max(5, Math.round(baseVal + wave));
+
+    const prevVal = points.length > 0 ? points[points.length - 1].value : Math.max(1, Math.round(start * 0.95));
     const diff = val - prevVal;
     const pct = prevVal > 0 ? Math.round((diff / prevVal) * 100) : 0;
     const changeStr = pct >= 0 ? `+${pct}%` : `${pct}%`;
@@ -101,6 +100,32 @@ function generateTrendData(metric: "users" | "photos" | "games", days: number) {
   }
 
   return points;
+}
+
+// Convert discrete points to a smooth cubic Bézier curve for SVG
+function getSmoothCurvePath(points: { x: number; y: number }[]): { pathD: string; areaD: string } {
+  if (points.length < 2) return { pathD: "", areaD: "" };
+  let pathD = `M ${points[0].x.toFixed(2)},${points[0].y.toFixed(2)}`;
+
+  for (let i = 0; i < points.length - 1; i++) {
+    const p0 = points[i === 0 ? 0 : i - 1];
+    const p1 = points[i];
+    const p2 = points[i + 1];
+    const p3 = points[i + 2] || p2;
+
+    const cp1x = p1.x + (p2.x - p0.x) / 6;
+    const cp1y = p1.y + (p2.y - p0.y) / 6;
+    const cp2x = p2.x - (p3.x - p1.x) / 6;
+    const cp2y = p2.y - (p3.y - p1.y) / 6;
+
+    pathD += ` C ${cp1x.toFixed(2)},${cp1y.toFixed(2)} ${cp2x.toFixed(2)},${cp2y.toFixed(2)} ${p2.x.toFixed(2)},${p2.y.toFixed(2)}`;
+  }
+
+  const last = points[points.length - 1];
+  const first = points[0];
+  const areaD = `${pathD} L ${last.x.toFixed(2)},100 L ${first.x.toFixed(2)},100 Z`;
+
+  return { pathD, areaD };
 }
 
 export default function DashboardPage() {
@@ -186,14 +211,14 @@ export default function DashboardPage() {
     return generateTrendData(chartMetric, chartDays);
   }, [chartMetric, chartDays]);
 
-  // Compute SVG coordinates for curve
+  // Compute smooth curve SVG coordinates
   const chartCoordinates = useMemo(() => {
-    if (!trendDataset.length) return { pointsAttr: "", polygonAttr: "", points: [], maxVal: 100, minVal: 0 };
+    if (!trendDataset.length) return { pathD: "", areaD: "", points: [], tickVals: [] };
     const values = trendDataset.map((d) => d.value);
     const max = Math.max(...values);
     const min = Math.min(...values);
     const span = max - min || 1;
-    const padding = span * 0.15;
+    const padding = span * 0.18;
     const lo = Math.max(0, min - padding);
     const hi = max + padding;
 
@@ -203,10 +228,17 @@ export default function DashboardPage() {
       return { x, y, ...item };
     });
 
-    const pointsAttr = points.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
-    const polygonAttr = `0,100 ${pointsAttr} 100,100`;
+    const { pathD, areaD } = getSmoothCurvePath(points);
 
-    return { pointsAttr, polygonAttr, points, maxVal: Math.round(hi), minVal: Math.round(lo) };
+    // 4 reference tick values for horizontal grid lines
+    const ticksCount = 4;
+    const tickVals = Array.from({ length: ticksCount }, (_, i) => {
+      const val = Math.round(hi - (i / (ticksCount - 1)) * (hi - lo));
+      const yPercent = (i / (ticksCount - 1)) * 100;
+      return { val, yPercent };
+    });
+
+    return { pathD, areaD, points, tickVals };
   }, [trendDataset]);
 
   // Handle Add New Frame
@@ -277,10 +309,12 @@ export default function DashboardPage() {
     return null;
   }
 
-  const activeHoverPoint =
-    hoveredPointIndex !== null && chartCoordinates.points[hoveredPointIndex]
-      ? chartCoordinates.points[hoveredPointIndex]
-      : chartCoordinates.points[chartCoordinates.points.length - 1];
+  const activePointIndex =
+    hoveredPointIndex !== null && hoveredPointIndex >= 0 && hoveredPointIndex < chartCoordinates.points.length
+      ? hoveredPointIndex
+      : chartCoordinates.points.length - 1;
+
+  const activePoint = chartCoordinates.points[activePointIndex];
 
   return (
     <div className="min-h-screen bg-[#FFF9FB] text-[#2B2D42] flex antialiased selection:bg-[#FB6F92] selection:text-white">
@@ -617,7 +651,7 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              {/* SAAS INTERACTIVE ACTIVITY & GROWTH CHART (BagUI Style) */}
+              {/* SAAS PROFESSIONAL SPLINE TELEMETRY CHART (BagUI Architecture) */}
               <div className="rounded-3xl p-6 lg:p-8 bg-white border border-[#FB6F92]/20 shadow-sm space-y-6">
                 {/* Chart Header Bar */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/40 pb-4">
@@ -629,7 +663,7 @@ export default function DashboardPage() {
                       </h3>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Visualisasi tren pertumbuhan harian pengguna dan sesi aktivitas berdua secara interaktif.
+                      Visualisasi kurva halus (Bézier Spline) dari volume aktivitas harian dan pengguna aktif.
                     </p>
                   </div>
 
@@ -691,88 +725,136 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                {/* Interactive Tooltip Callout */}
+                {/* Metric Summary Header */}
                 <div className="flex items-baseline justify-between flex-wrap gap-2 px-1">
                   <div>
                     <span className="text-[11px] font-mono font-bold uppercase text-[#7D7F9A] tracking-wider block">
-                      Titik Data Terpilih ({activeHoverPoint?.date || "Hari Ini"})
+                      Titik Data Terpilih ({activePoint?.date || "Hari Ini"})
                     </span>
                     <div className="flex items-baseline gap-2.5 mt-0.5">
                       <span className="font-display font-black text-3xl text-[#2B2D42]">
-                        {activeHoverPoint?.value || 0}
+                        {activePoint?.value || 0}
                       </span>
                       <span className="text-xs font-mono font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                        {activeHoverPoint?.change || "+0%"} vs hari sebelumnya
+                        {activePoint?.change || "+0%"} vs hari sebelumnya
                       </span>
                     </div>
                   </div>
 
                   <div className="text-right text-xs font-mono text-muted-foreground hidden sm:block">
-                    Arahkan kursor ke garis kurva untuk inspeksi detail per tanggal
+                    Arahkan kursor ke kurva untuk melihat data per tanggal
                   </div>
                 </div>
 
-                {/* SVG Line & Area Curve */}
-                <div className="relative h-60 w-full pt-4">
-                  <svg
-                    viewBox="0 0 100 100"
-                    preserveAspectRatio="none"
-                    className="h-full w-full overflow-visible"
-                  >
-                    <defs>
-                      <linearGradient id="saas-curve-gradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#FB6F92" stopOpacity="0.32" />
-                        <stop offset="100%" stopColor="#FB6F92" stopOpacity="0.0" />
-                      </linearGradient>
-                    </defs>
+                {/* Professional Chart Container with Y-Axis Values & Gridlines */}
+                <div className="flex gap-4 pt-2">
+                  {/* Y-Axis Value Labels Column */}
+                  <div className="flex flex-col justify-between py-1 text-right text-[11px] font-mono text-[#7D7F9A] select-none shrink-0 w-8">
+                    {chartCoordinates.tickVals.map((t, idx) => (
+                      <span key={idx}>{t.val}</span>
+                    ))}
+                  </div>
 
-                    {/* Background Filled Area */}
-                    <polygon
-                      points={chartCoordinates.polygonAttr}
-                      fill="url(#saas-curve-gradient)"
-                    />
-
-                    {/* Line Stroke */}
-                    <polyline
-                      points={chartCoordinates.pointsAttr}
-                      fill="none"
-                      stroke="#FB6F92"
-                      strokeWidth="2"
-                      vectorEffect="non-scaling-stroke"
-                    />
-
-                    {/* Interactive Points */}
-                    {chartCoordinates.points.map((p, idx) => (
-                      <g key={idx}>
-                        <circle
-                          cx={p.x}
-                          cy={p.y}
-                          r={hoveredPointIndex === idx ? "4" : "2"}
-                          className={`transition-all duration-200 ${
-                            hoveredPointIndex === idx
-                              ? "fill-white stroke-[#FB6F92] stroke-2"
-                              : "fill-[#FB6F92]"
-                          }`}
+                  {/* Chart Drawing Canvas Wrapper */}
+                  <div className="relative flex-1 h-64 w-full">
+                    {/* Horizontal Reference Gridlines */}
+                    <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
+                      {chartCoordinates.tickVals.map((_, idx) => (
+                        <div
+                          key={idx}
+                          className="w-full border-b border-dashed border-border/30"
                         />
-                      </g>
-                    ))}
-                  </svg>
+                      ))}
+                    </div>
 
-                  {/* Invisible Hover Hitboxes */}
-                  <div className="absolute inset-0 flex">
-                    {chartCoordinates.points.map((_, idx) => (
+                    {/* Smooth Bézier Curve SVG */}
+                    <svg
+                      viewBox="0 0 100 100"
+                      preserveAspectRatio="none"
+                      className="absolute inset-0 h-full w-full overflow-visible"
+                    >
+                      <defs>
+                        <linearGradient id="saas-smooth-gradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#FB6F92" stopOpacity="0.28" />
+                          <stop offset="100%" stopColor="#FB6F92" stopOpacity="0.0" />
+                        </linearGradient>
+                      </defs>
+
+                      {/* Smooth Area Fill */}
+                      {chartCoordinates.areaD && (
+                        <path
+                          d={chartCoordinates.areaD}
+                          fill="url(#saas-smooth-gradient)"
+                        />
+                      )}
+
+                      {/* Smooth Polyline Stroke */}
+                      {chartCoordinates.pathD && (
+                        <path
+                          d={chartCoordinates.pathD}
+                          fill="none"
+                          stroke="#FB6F92"
+                          strokeWidth="2.2"
+                          vectorEffect="non-scaling-stroke"
+                        />
+                      )}
+                    </svg>
+
+                    {/* Interactive Hover Vertical Crosshair Tracker */}
+                    {activePoint && (
                       <div
-                        key={idx}
-                        onMouseEnter={() => setHoveredPointIndex(idx)}
-                        onMouseLeave={() => setHoveredPointIndex(null)}
-                        className="flex-1 h-full cursor-crosshair"
+                        className="pointer-events-none absolute inset-y-0 transition-all duration-75"
+                        style={{ left: `${activePoint.x}%` }}
+                      >
+                        <div className="h-full w-px border-l border-dashed border-[#FB6F92]/50" />
+                      </div>
+                    )}
+
+                    {/* Active Point Glowing HTML Circle (Guaranteed Round, Never Distorts) */}
+                    {activePoint && (
+                      <div
+                        style={{
+                          left: `${activePoint.x}%`,
+                          top: `${activePoint.y}%`,
+                        }}
+                        className="pointer-events-none absolute size-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-[#FB6F92] shadow-[0_0_0_5px_rgba(251,111,146,0.3)] transition-all duration-75 z-20"
                       />
-                    ))}
+                    )}
+
+                    {/* Floating Tooltip Pill */}
+                    {activePoint && (
+                      <div
+                        style={{
+                          left: `${activePoint.x}%`,
+                          top: `${activePoint.y}%`,
+                        }}
+                        className="pointer-events-none absolute z-30 -translate-x-1/2 -translate-y-[calc(100%+14px)] whitespace-nowrap rounded-xl border border-border/40 bg-white/95 backdrop-blur-md px-3 py-1.5 shadow-lg shadow-black/5 transition-all duration-75"
+                      >
+                        <p className="text-[10px] font-mono text-[#7D7F9A]">{activePoint.date}</p>
+                        <p className="flex items-center gap-1.5 text-xs font-bold text-[#2B2D42]">
+                          <span>{activePoint.value} entitas</span>
+                          <span className="text-emerald-600 font-mono text-[10px]">
+                            {activePoint.change}
+                          </span>
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Invisible Hover Hitboxes across X-Axis */}
+                    <div className="absolute inset-0 flex z-10">
+                      {chartCoordinates.points.map((_, idx) => (
+                        <div
+                          key={idx}
+                          onMouseEnter={() => setHoveredPointIndex(idx)}
+                          className="flex-1 h-full cursor-crosshair"
+                        />
+                      ))}
+                    </div>
                   </div>
                 </div>
 
                 {/* Sumbu X Dates Labels */}
-                <div className="flex justify-between text-[11px] font-mono text-[#7D7F9A] pt-2 border-t border-border/30">
+                <div className="flex justify-between text-[11px] font-mono text-[#7D7F9A] pt-2 border-t border-border/30 pl-12">
                   <span>{trendDataset[0]?.date}</span>
                   <span className="hidden sm:inline">
                     {trendDataset[Math.floor(trendDataset.length / 2)]?.date}
