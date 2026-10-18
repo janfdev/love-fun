@@ -1,225 +1,642 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { ArrowLeft, Lock, Plus, Palette, Shield, Database, Trash2, CheckCircle2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import {
+  ArrowLeft,
+  Plus,
+  Palette,
+  Shield,
+  Trash2,
+  Camera,
+  Users,
+  Gamepad2,
+  RefreshCw,
+  Clock,
+  Sparkles,
+  Layers,
+  LogOut,
+  ExternalLink,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
+interface AdminKPIs {
+  totalUsers: number;
+  totalPhotos: number;
+  totalRooms: number;
+  activeRooms: number;
+  avgChemistryScore: number;
+}
+
+interface GameRoomItem {
+  id: string;
+  room_code: string;
+  host_name: string;
+  partner_name?: string | null;
+  game_type: string;
+  status: string;
+  expires_at: string;
+  final_score?: number | null;
+  created_at: string;
+}
+
+interface FrameItem {
+  id: string;
+  frame_code: string;
+  frame_name: string;
+  bg_color: string;
+  border_color: string;
+  text_color: string;
+  is_active: boolean;
+}
+
 export default function DashboardPage() {
-  const [authenticated, setAuthenticated] = useState(false);
-  const [adminKey, setAdminKey] = useState("");
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const router = useRouter();
 
-  // Dynamic Frames Mock State
-  const [frames, setFrames] = useState([
-    { id: "1", name: "Blush Pink", bg: "#FFE5EC", border: "#FB6F92" },
-    { id: "2", name: "Cream Pearl", bg: "#FFF0F4", border: "#E29578" },
-    { id: "3", name: "Lavender Haze", bg: "#E8DFF5", border: "#735D96" },
-  ]);
+  const [loading, setLoading] = useState(true);
+  const [authorized, setAuthorized] = useState(false);
+  const [adminUser, setAdminUser] = useState<{ name?: string; email?: string } | null>(null);
 
+  // Active Tab: "overview" | "rooms" | "frames"
+  const [activeTab, setActiveTab] = useState<"overview" | "rooms" | "frames">("overview");
+
+  // Telemetry & Data States
+  const [kpis, setKpis] = useState<AdminKPIs>({
+    totalUsers: 0,
+    totalPhotos: 0,
+    totalRooms: 0,
+    activeRooms: 0,
+    avgChemistryScore: 88,
+  });
+  const [rooms, setRooms] = useState<GameRoomItem[]>([]);
+  const [frames, setFrames] = useState<FrameItem[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // New Frame Form State
   const [newFrameName, setNewFrameName] = useState("");
   const [newBgColor, setNewBgColor] = useState("#FFE5EC");
   const [newBorderColor, setNewBorderColor] = useState("#FB6F92");
+  const [newTextColor, setNewTextColor] = useState("#2B2D42");
+  const [frameSubmitting, setFrameSubmitting] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  // 1. Fetch Metrics & Verify Super Admin Session (Zero Key Required for Super Admin)
+  const loadAdminMetrics = useCallback(async () => {
+    try {
+      setRefreshing(true);
+      const res = await fetch("/api/admin/metrics");
+      if (res.status === 401 || res.status === 403) {
+        setAuthorized(false);
+        router.push("/login?error=SuperAdminRequired");
+        return;
+      }
+
+      const resData = await res.json();
+      if (resData.success && resData.data) {
+        setAuthorized(true);
+        setAdminUser(resData.data.adminUser);
+        setKpis(resData.data.kpis);
+        setRooms(resData.data.recentRooms || []);
+        setFrames(resData.data.frameCatalog || []);
+      }
+    } catch {
+      router.push("/login?error=SessionVerificationFailed");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [router]);
+
+  useEffect(() => {
+    loadAdminMetrics();
+  }, [loadAdminMetrics]);
+
+  // Handle Add New Frame
+  const handleAddFrame = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Validasi token rahasia admin
-    if (adminKey.trim() === "lovefun2026" || adminKey.trim().length >= 8) {
-      setAuthenticated(true);
-      setErrorMsg(null);
-    } else {
-      setErrorMsg("Kunci rahasia Super Admin salah.");
+    if (!newFrameName.trim()) return;
+
+    setFrameSubmitting(true);
+    try {
+      const res = await fetch("/api/admin/frames", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          frame_name: newFrameName.trim(),
+          bg_color: newBgColor,
+          border_color: newBorderColor,
+          text_color: newTextColor,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success && data.frame) {
+        setFrames((prev) => [data.frame, ...prev.filter((f) => f.id !== data.frame.id)]);
+        setNewFrameName("");
+      }
+    } catch (err) {
+      console.error("Gagal menambahkan frame:", err);
+    } finally {
+      setFrameSubmitting(false);
     }
   };
 
-  const handleAddFrame = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newFrameName.trim()) return;
-    setFrames((prev) => [
-      ...prev,
-      {
-        id: String(Date.now()),
-        name: newFrameName.trim(),
-        bg: newBgColor,
-        border: newBorderColor,
-      },
-    ]);
-    setNewFrameName("");
+  // Handle Delete Frame
+  const handleDeleteFrame = async (id: string) => {
+    if (!confirm("Hapus template frame ini dari katalog?")) return;
+    try {
+      const res = await fetch(`/api/admin/frames?id=${id}`, { method: "DELETE" });
+      if (res.ok) {
+        setFrames((prev) => prev.filter((f) => f.id !== id));
+      }
+    } catch (err) {
+      console.error("Gagal menghapus frame:", err);
+    }
   };
 
-  const handleDeleteFrame = (id: string) => {
-    setFrames((prev) => prev.filter((f) => f.id !== id));
-  };
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#FFF9FB] flex flex-col items-center justify-center space-y-4">
+        <div className="size-12 rounded-2xl bg-[#FFE5EC] border border-[#FB6F92]/30 flex items-center justify-center text-[#FB6F92] animate-bounce shadow-xs">
+          <Shield className="size-6" />
+        </div>
+        <p className="font-mono text-xs font-semibold text-[#7D7F9A] uppercase tracking-wider">
+          Memverifikasi wewenang Super Admin...
+        </p>
+      </div>
+    );
+  }
+
+  // Not Authorized Gate
+  if (!authorized) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-[#FFF9FB] text-[#2B2D42] flex flex-col justify-between selection:bg-[#FB6F92] selection:text-white">
-      {/* Top Header */}
-      <header className="sticky top-3 z-40 max-w-5xl w-full mx-auto px-4 py-2">
-        <div className="rounded-full bg-white/85 backdrop-blur-md border border-[#2B2D42]/15 px-5 py-3 flex items-center justify-between shadow-sm">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 text-xs font-semibold text-[#7D7F9A] hover:text-[#2B2D42] transition"
-          >
-            <ArrowLeft className="size-4" />
-            <span>Kembali ke Beranda</span>
-          </Link>
+      {/* Top Header Navigation */}
+      <header className="sticky top-3 z-40 max-w-6xl w-full mx-auto px-4 py-2">
+        <div className="rounded-full bg-white/85 backdrop-blur-md border border-[#2B2D42]/15 px-6 py-3 flex items-center justify-between shadow-xs">
+          <div className="flex items-center gap-3">
+            <Link
+              href="/"
+              className="inline-flex items-center gap-2 text-xs font-semibold text-[#7D7F9A] hover:text-[#2B2D42] transition"
+            >
+              <ArrowLeft className="size-4" />
+              <span className="hidden sm:inline">Beranda</span>
+            </Link>
+            <span className="text-[#7D7F9A] hidden sm:inline">/</span>
+            <div className="flex items-center gap-2">
+              <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="font-display font-extrabold text-sm text-[#2B2D42]">
+                LoveFun Studio Control
+              </span>
+            </div>
+          </div>
 
-          <div className="flex items-center gap-1.5 text-xs font-mono font-extrabold text-[#2B2D42]">
-            <Lock className="size-4 text-[#FB6F92]" />
-            <span>SUPER ADMIN // DASHBOARD</span>
+          <div className="flex items-center gap-2.5">
+            <Badge variant="primary" className="font-mono text-[10px] hidden md:inline-flex">
+              SUPER ADMIN: {adminUser?.email || "fauzanrizqinoor@gmail.com"}
+            </Badge>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={loadAdminMetrics}
+              disabled={refreshing}
+              className="rounded-full text-xs"
+            >
+              <RefreshCw className={`size-3.5 ${refreshing ? "animate-spin" : ""}`} />
+              <span className="hidden sm:inline">Refresh</span>
+            </Button>
+
+            <Link href="/api/auth/logout">
+              <Button variant="ghost" size="sm" className="rounded-full text-xs text-red-500 hover:text-red-600 hover:bg-red-50">
+                <LogOut className="size-3.5" />
+              </Button>
+            </Link>
           </div>
         </div>
       </header>
 
-      {/* Main Content Area */}
-      <main className="max-w-4xl w-full mx-auto px-4 py-8 flex-1 flex flex-col justify-center">
-        {!authenticated ? (
-          /* Private Login Gate */
-          <div className="max-w-md w-full mx-auto space-y-6">
-            <div className="text-center space-y-2">
-              <div className="size-12 rounded-2xl bg-[#FFE5EC] border border-[#FB6F92]/30 flex items-center justify-center text-[#FB6F92] mx-auto shadow-xs">
-                <Shield className="size-6" />
+      {/* Main Admin Dashboard Body */}
+      <main className="max-w-6xl w-full mx-auto px-5 lg:px-8 py-6 flex-1 space-y-8">
+        {/* Navigation Tabs (BagUI Pill Design) */}
+        <div className="flex items-center justify-between border-b border-[#FB6F92]/20 pb-4 flex-wrap gap-4">
+          <div className="flex items-center gap-2 bg-white/80 p-1.5 rounded-2xl border border-[#FB6F92]/15 shadow-2xs">
+            <button
+              onClick={() => setActiveTab("overview")}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all select-none ${
+                activeTab === "overview"
+                  ? "bg-[#FB6F92] text-white shadow-xs"
+                  : "text-[#7D7F9A] hover:text-[#2B2D42]"
+              }`}
+            >
+              Overview Telemetry
+            </button>
+            <button
+              onClick={() => setActiveTab("rooms")}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all select-none ${
+                activeTab === "rooms"
+                  ? "bg-[#FB6F92] text-white shadow-xs"
+                  : "text-[#7D7F9A] hover:text-[#2B2D42]"
+              }`}
+            >
+              Game Rooms ({rooms.length})
+            </button>
+            <button
+              onClick={() => setActiveTab("frames")}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all select-none ${
+                activeTab === "frames"
+                  ? "bg-[#FB6F92] text-white shadow-xs"
+                  : "text-[#7D7F9A] hover:text-[#2B2D42]"
+              }`}
+            >
+              Frame Catalog ({frames.length})
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Link href="/booth" target="_blank">
+              <Button size="sm" variant="outline" className="rounded-full text-xs gap-1.5">
+                <Camera className="size-3.5 text-[#FB6F92]" />
+                <span>Test Studio</span>
+                <ExternalLink className="size-3 text-muted-foreground" />
+              </Button>
+            </Link>
+            <Link href="/games/sync" target="_blank">
+              <Button size="sm" variant="outline" className="rounded-full text-xs gap-1.5">
+                <Gamepad2 className="size-3.5 text-[#735D96]" />
+                <span>Test Sync Game</span>
+                <ExternalLink className="size-3 text-muted-foreground" />
+              </Button>
+            </Link>
+          </div>
+        </div>
+
+        {/* TAB 1: OVERVIEW TELEMETRY */}
+        {activeTab === "overview" && (
+          <div className="space-y-6">
+            {/* KPI Metrics Grid (BagUI Cards) */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
+              {/* Card 1 */}
+              <div className="rounded-3xl p-5 bg-white border border-[#FB6F92]/20 shadow-sm space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-mono font-bold text-[#7D7F9A] uppercase tracking-wider">
+                    Total Photos
+                  </span>
+                  <div className="size-8 rounded-xl bg-[#FFE5EC] flex items-center justify-center text-[#FB6F92]">
+                    <Camera className="size-4" />
+                  </div>
+                </div>
+                <div>
+                  <h3 className="font-display text-3xl font-black text-[#2B2D42]">
+                    {kpis.totalPhotos.toLocaleString()}
+                  </h3>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Exports & prints generated
+                  </p>
+                </div>
               </div>
-              <h1 className="font-display text-2xl font-black text-[#2B2D42]">
-                Akses Privat Super Admin
-              </h1>
-              <p className="font-sans text-xs text-[#7D7F9A]">
-                Halaman ini terisolasi dan hanya dapat diakses dengan kunci autentikasi rahasia.
-              </p>
+
+              {/* Card 2 */}
+              <div className="rounded-3xl p-5 bg-white border border-[#FB6F92]/20 shadow-sm space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-mono font-bold text-[#7D7F9A] uppercase tracking-wider">
+                    Active Rooms
+                  </span>
+                  <div className="size-8 rounded-xl bg-[#E8DFF5] flex items-center justify-center text-[#735D96]">
+                    <Gamepad2 className="size-4" />
+                  </div>
+                </div>
+                <div>
+                  <h3 className="font-display text-3xl font-black text-[#2B2D42]">
+                    {kpis.activeRooms}
+                  </h3>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Live 5-hour TTL sessions
+                  </p>
+                </div>
+              </div>
+
+              {/* Card 3 */}
+              <div className="rounded-3xl p-5 bg-white border border-[#FB6F92]/20 shadow-sm space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-mono font-bold text-[#7D7F9A] uppercase tracking-wider">
+                    Avg Chemistry
+                  </span>
+                  <div className="size-8 rounded-xl bg-[#FFF0F4] flex items-center justify-center text-[#FB6F92]">
+                    <Sparkles className="size-4" />
+                  </div>
+                </div>
+                <div>
+                  <h3 className="font-display text-3xl font-black text-[#2B2D42]">
+                    {kpis.avgChemistryScore}%
+                  </h3>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Couple alignment index
+                  </p>
+                </div>
+              </div>
+
+              {/* Card 4 */}
+              <div className="rounded-3xl p-5 bg-white border border-[#FB6F92]/20 shadow-sm space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-mono font-bold text-[#7D7F9A] uppercase tracking-wider">
+                    Registered Users
+                  </span>
+                  <div className="size-8 rounded-xl bg-[#FFE5EC] flex items-center justify-center text-[#FB6F92]">
+                    <Users className="size-4" />
+                  </div>
+                </div>
+                <div>
+                  <h3 className="font-display text-3xl font-black text-[#2B2D42]">
+                    {kpis.totalUsers}
+                  </h3>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Authenticated profiles
+                  </p>
+                </div>
+              </div>
             </div>
 
-            <form onSubmit={handleLogin} className="p-6 rounded-[2rem] bg-white border border-[#2B2D42]/15 shadow-xl space-y-4">
-              {errorMsg && (
-                <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-600 font-semibold text-center">
-                  {errorMsg}
+            {/* Quick Summary Split Panel */}
+            <div className="grid md:grid-cols-2 gap-6">
+              {/* Left: Active System Health */}
+              <div className="rounded-[2rem] p-6 bg-white border border-[#2B2D42]/10 shadow-sm space-y-4">
+                <div className="flex items-center justify-between border-b border-border/40 pb-3">
+                  <div className="flex items-center gap-2">
+                    <Shield className="size-4 text-[#FB6F92]" />
+                    <h4 className="font-display font-bold text-sm text-[#2B2D42]">
+                      Platform Status & Security
+                    </h4>
+                  </div>
+                  <Badge variant="outline" className="text-[10px] text-emerald-600 border-emerald-300 bg-emerald-50">
+                    OPERATIONAL
+                  </Badge>
                 </div>
-              )}
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-mono font-bold text-[#2B2D42] uppercase tracking-wider">
-                  Admin Passphrase Key
-                </label>
-                <Input
-                  type="password"
-                  value={adminKey}
-                  onChange={(e) => setAdminKey(e.target.value)}
-                  placeholder="Masukkan kunci rahasia..."
-                  className="font-mono"
-                />
+                <div className="space-y-3 text-xs text-[#7D7F9A]">
+                  <div className="flex justify-between py-1.5 border-b border-border/20">
+                    <span>Super Admin RBAC Authority:</span>
+                    <span className="font-mono font-bold text-foreground">Verified Session (Bypass Key)</span>
+                  </div>
+                  <div className="flex justify-between py-1.5 border-b border-border/20">
+                    <span>Primary Host Domain:</span>
+                    <span className="font-mono text-foreground">fun.fizaa.me (Dahono Cloud)</span>
+                  </div>
+                  <div className="flex justify-between py-1.5 border-b border-border/20">
+                    <span>Database ORM:</span>
+                    <span className="font-mono text-foreground">PostgreSQL · Prisma v6.4.1</span>
+                  </div>
+                  <div className="flex justify-between py-1.5">
+                    <span>Ephemeral Session Storage:</span>
+                    <span className="font-mono text-foreground">5-Hour TTL Auto-Expire</span>
+                  </div>
+                </div>
               </div>
 
-              <Button type="submit" size="lg" className="w-full rounded-xl font-display font-bold">
-                Masuk Dashboard
-              </Button>
-            </form>
+              {/* Right: Quick Frame Stats */}
+              <div className="rounded-[2rem] p-6 bg-white border border-[#2B2D42]/10 shadow-sm space-y-4">
+                <div className="flex items-center justify-between border-b border-border/40 pb-3">
+                  <div className="flex items-center gap-2">
+                    <Layers className="size-4 text-[#735D96]" />
+                    <h4 className="font-display font-bold text-sm text-[#2B2D42]">
+                      Katalog Frame Aktif
+                    </h4>
+                  </div>
+                  <span className="text-xs font-mono text-muted-foreground">
+                    {frames.length} Tema
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap gap-2.5 pt-1">
+                  {frames.slice(0, 6).map((f) => (
+                    <div
+                      key={f.id}
+                      className="flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-semibold shadow-2xs"
+                      style={{
+                        backgroundColor: f.bg_color,
+                        borderColor: f.border_color,
+                        color: f.text_color,
+                      }}
+                    >
+                      <span
+                        className="size-2 rounded-full"
+                        style={{ backgroundColor: f.border_color }}
+                      />
+                      <span>{f.frame_name}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
-        ) : (
-          /* Admin Control Panel */
-          <div className="space-y-8">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#2B2D42]/10 pb-4">
+        )}
+
+        {/* TAB 2: LIVE GAME ROOMS INSPECTOR */}
+        {activeTab === "rooms" && (
+          <div className="rounded-[2rem] p-6 bg-white border border-[#2B2D42]/10 shadow-sm space-y-4">
+            <div className="flex items-center justify-between border-b border-border/40 pb-3">
               <div>
-                <h1 className="font-display text-2xl font-black text-[#2B2D42]">
-                  Katalog Bingkai & Aset Booth
-                </h1>
-                <p className="font-sans text-xs text-[#7D7F9A]">
-                  Kelola tema bingkai foto yang dapat dipilih oleh pengguna di `/booth`.
+                <h3 className="font-display font-bold text-lg text-[#2B2D42]">
+                  Live Game Room Inspector
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  Pantau ruangan kuis pasangan yang aktif maupun yang baru saja selesai.
                 </p>
               </div>
-              <Badge variant="primary" className="font-mono text-xs w-fit">
-                AUTHENTICATED AS SUPER ADMIN
+              <Badge variant="primary" className="font-mono text-xs">
+                {rooms.length} ROOMS LOADED
               </Badge>
             </div>
 
-            {/* Form Tambah Bingkai */}
-            <form onSubmit={handleAddFrame} className="p-6 rounded-[2rem] bg-white border border-[#2B2D42]/15 shadow-sm space-y-4">
-              <h2 className="font-display font-bold text-base text-[#2B2D42] flex items-center gap-2">
-                <Plus className="size-4 text-[#FB6F92]" />
-                <span>Tambah Tema Bingkai Baru</span>
-              </h2>
+            {rooms.length === 0 ? (
+              <div className="py-12 text-center text-xs text-muted-foreground space-y-2">
+                <Clock className="size-8 text-muted-foreground/40 mx-auto" />
+                <p>Belum ada room game yang dibuat hari ini.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-border/40 text-[11px] font-mono text-muted-foreground uppercase">
+                      <th className="py-3 px-3">Room Code</th>
+                      <th className="py-3 px-3">Tipe Game</th>
+                      <th className="py-3 px-3">Host & Pasangan</th>
+                      <th className="py-3 px-3">Status</th>
+                      <th className="py-3 px-3">Skor</th>
+                      <th className="py-3 px-3">Kedaluwarsa</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rooms.map((r) => (
+                      <tr key={r.id} className="border-b border-border/20 hover:bg-muted/10 transition-colors">
+                        <td className="py-3 px-3 font-mono font-black text-sm text-[#FB6F92]">
+                          {r.room_code}
+                        </td>
+                        <td className="py-3 px-3">
+                          <span className="font-semibold text-foreground">
+                            {r.game_type === "WHOS_MOST_LIKELY"
+                              ? "Who's Most Likely To"
+                              : "Sync or Sink"}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3">
+                          <span className="font-medium text-foreground">{r.host_name}</span>
+                          {r.partner_name && (
+                            <span className="text-muted-foreground"> & {r.partner_name}</span>
+                          )}
+                        </td>
+                        <td className="py-3 px-3">
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                              r.status === "PLAYING"
+                                ? "bg-amber-100 text-amber-700"
+                                : r.status === "COMPLETED"
+                                ? "bg-emerald-100 text-emerald-700"
+                                : "bg-zinc-100 text-zinc-600"
+                            }`}
+                          >
+                            {r.status}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3 font-mono font-bold">
+                          {r.final_score !== null && r.final_score !== undefined
+                            ? `${r.final_score}%`
+                            : "-"}
+                        </td>
+                        <td className="py-3 px-3 text-muted-foreground font-mono">
+                          {new Date(r.expires_at).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
 
-              <div className="grid sm:grid-cols-3 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-mono font-semibold text-[#2B2D42]">Nama Bingkai</label>
+        {/* TAB 3: FRAME CATALOG MANAGEMENT */}
+        {activeTab === "frames" && (
+          <div className="grid md:grid-cols-3 gap-6">
+            {/* Form Tambah Frame Baru */}
+            <div className="md:col-span-1 rounded-[2rem] p-6 bg-white border border-[#FB6F92]/20 shadow-sm space-y-4 h-fit">
+              <div className="flex items-center gap-2 border-b border-border/40 pb-3">
+                <Palette className="size-4 text-[#FB6F92]" />
+                <h3 className="font-display font-bold text-sm text-[#2B2D42]">
+                  Tambah Frame Baru
+                </h3>
+              </div>
+
+              <form onSubmit={handleAddFrame} className="space-y-3.5">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-[#7D7F9A]">Nama Frame</label>
                   <Input
-                    type="text"
                     value={newFrameName}
                     onChange={(e) => setNewFrameName(e.target.value)}
-                    placeholder="Contoh: Sunset Coral"
+                    placeholder="Contoh: Matcha Mint"
+                    required
                   />
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-xs font-mono font-semibold text-[#2B2D42]">Warna Background</label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="color"
-                      value={newBgColor}
-                      onChange={(e) => setNewBgColor(e.target.value)}
-                      className="size-10 rounded-xl cursor-pointer border border-[#2B2D42]/15"
-                    />
-                    <Input
-                      type="text"
-                      value={newBgColor}
-                      onChange={(e) => setNewBgColor(e.target.value)}
-                      className="font-mono text-xs uppercase"
-                    />
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-[#7D7F9A]">Warna BG</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={newBgColor}
+                        onChange={(e) => setNewBgColor(e.target.value)}
+                        className="size-8 rounded-lg border cursor-pointer"
+                      />
+                      <span className="font-mono text-xs">{newBgColor}</span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-[#7D7F9A]">Warna Border</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={newBorderColor}
+                        onChange={(e) => setNewBorderColor(e.target.value)}
+                        className="size-8 rounded-lg border cursor-pointer"
+                      />
+                      <span className="font-mono text-xs">{newBorderColor}</span>
+                    </div>
                   </div>
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-xs font-mono font-semibold text-[#2B2D42]">Warna Border Garis</label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="color"
-                      value={newBorderColor}
-                      onChange={(e) => setNewBorderColor(e.target.value)}
-                      className="size-10 rounded-xl cursor-pointer border border-[#2B2D42]/15"
-                    />
-                    <Input
-                      type="text"
-                      value={newBorderColor}
-                      onChange={(e) => setNewBorderColor(e.target.value)}
-                      className="font-mono text-xs uppercase"
-                    />
+                {/* Live Preview Sample */}
+                <div className="space-y-1 pt-1">
+                  <span className="text-[10px] font-mono uppercase text-muted-foreground">
+                    Live Sample Preview
+                  </span>
+                  <div
+                    className="p-3 rounded-xl border text-center text-xs font-bold"
+                    style={{
+                      backgroundColor: newBgColor,
+                      borderColor: newBorderColor,
+                      color: newTextColor,
+                    }}
+                  >
+                    {newFrameName || "Preview Template"}
                   </div>
                 </div>
+
+                <Button
+                  type="submit"
+                  disabled={frameSubmitting || !newFrameName.trim()}
+                  className="w-full rounded-xl font-bold mt-2"
+                >
+                  <Plus className="size-4" />
+                  <span>Simpan ke Database</span>
+                </Button>
+              </form>
+            </div>
+
+            {/* List Frame yang Terdaftar */}
+            <div className="md:col-span-2 rounded-[2rem] p-6 bg-white border border-[#2B2D42]/10 shadow-sm space-y-4">
+              <div className="flex items-center justify-between border-b border-border/40 pb-3">
+                <h3 className="font-display font-bold text-sm text-[#2B2D42]">
+                  Daftar Template Bingkai Terdaftar
+                </h3>
+                <span className="text-xs font-mono text-muted-foreground">
+                  {frames.length} Frame
+                </span>
               </div>
 
-              <Button type="submit" size="md" className="rounded-xl font-display font-bold">
-                Simpan Bingkai ke Database
-              </Button>
-            </form>
-
-            {/* List Bingkai Aktif */}
-            <div className="space-y-3">
-              <h3 className="font-display font-bold text-sm text-[#2B2D42] uppercase tracking-wider font-mono">
-                Daftar Bingkai Aktif ({frames.length})
-              </h3>
-              <div className="grid sm:grid-cols-3 gap-4">
-                {frames.map((frame) => (
+              <div className="grid sm:grid-cols-2 gap-4">
+                {frames.map((f) => (
                   <div
-                    key={frame.id}
-                    className="p-4 rounded-2xl bg-white border border-[#2B2D42]/15 shadow-xs flex items-center justify-between"
+                    key={f.id}
+                    className="p-4 rounded-2xl border shadow-xs flex items-center justify-between transition hover:shadow-md"
+                    style={{
+                      backgroundColor: f.bg_color,
+                      borderColor: f.border_color,
+                      color: f.text_color,
+                    }}
                   >
-                    <div className="flex items-center gap-3">
-                      <div
-                        style={{ backgroundColor: frame.bg, borderColor: frame.border }}
-                        className="size-8 rounded-lg border-2 shadow-2xs"
-                      />
-                      <div>
-                        <span className="font-display font-bold text-xs text-[#2B2D42] block">{frame.name}</span>
-                        <span className="font-mono text-[10px] text-[#7D7F9A] block uppercase">{frame.border}</span>
-                      </div>
+                    <div className="space-y-1">
+                      <h4 className="font-bold text-sm">{f.frame_name}</h4>
+                      <p className="font-mono text-[10px] opacity-80">
+                        BG: {f.bg_color} · BD: {f.border_color}
+                      </p>
                     </div>
 
                     <button
                       type="button"
-                      onClick={() => handleDeleteFrame(frame.id)}
-                      className="text-red-500 hover:text-red-700 p-1.5 transition"
-                      title="Hapus Bingkai"
+                      onClick={() => handleDeleteFrame(f.id)}
+                      className="size-8 rounded-lg bg-white/80 hover:bg-white text-red-500 flex items-center justify-center transition shadow-2xs"
+                      title="Hapus Frame"
                     >
                       <Trash2 className="size-4" />
                     </button>
@@ -231,9 +648,10 @@ export default function DashboardPage() {
         )}
       </main>
 
-      {/* Footer */}
-      <footer className="max-w-5xl w-full mx-auto px-4 py-6 text-center text-xs font-mono text-[#7D7F9A]">
-        LoveFun Control Dashboard · Akses Administrator
+      {/* Footer Strip */}
+      <footer className="max-w-6xl w-full mx-auto px-5 lg:px-8 py-6 border-t border-[#FB6F92]/15 flex items-center justify-between text-xs font-mono text-[#7D7F9A]">
+        <span>LoveFun Control Room // Super Admin Verified</span>
+        <span>fauzanrizqinoor@gmail.com</span>
       </footer>
     </div>
   );

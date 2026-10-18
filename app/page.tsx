@@ -148,15 +148,27 @@ export default function HomePage() {
                 <span className="font-mono text-xs font-bold text-[#5A4E7A]">
                   2 DEVICES CONNECTED
                 </span>
-                <Link href="/games/sync">
-                  <Button
-                    size="md"
-                    className="rounded-full font-display font-bold bg-[#735D96] hover:bg-[#624D82] text-white shadow-md shadow-[#735D96]/20"
-                  >
-                    <span>Mulai Main Berdua</span>
-                    <ArrowRight className="size-4" />
-                  </Button>
-                </Link>
+                <div className="flex flex-wrap items-center gap-3">
+                  <Link href="/games/sync">
+                    <Button
+                      size="sm"
+                      className="rounded-full font-display font-bold bg-[#735D96] hover:bg-[#624D82] text-white shadow-md shadow-[#735D96]/20"
+                    >
+                      <span>Sync or Sink</span>
+                      <ArrowRight className="size-3.5" />
+                    </Button>
+                  </Link>
+
+                  <Link href="/games/likely">
+                    <Button
+                      size="sm"
+                      className="rounded-full font-display font-bold bg-[#FB6F92] hover:bg-[#e0567a] text-white shadow-md shadow-[#FB6F92]/20"
+                    >
+                      <span>Who&apos;s Most Likely To?</span>
+                      <ArrowRight className="size-3.5" />
+                    </Button>
+                  </Link>
+                </div>
               </div>
             </div>
           </div>
