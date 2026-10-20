@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="100%" height="100%">
+  <title>LoveFun Brand Mark - Concept A (Heart Shutter Camera)</title>
+  <defs>
+    <linearGradient id="lfa-lens" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FB6F92"/>
+      <stop offset="100%" stop-color="#E11D48"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Camera Body Silhouette (High Contrast Dark Slate) -->
+  <rect x="24" y="38" width="208" height="180" rx="46" fill="#2B2D42"/>
+
+  <!-- Distinct Top Shutter Button & Flash Lens -->
+  <rect x="52" y="24" width="38" height="14" rx="6" fill="#FB6F92"/>
+  <circle cx="188" cy="74" r="12" fill="#FFE5EC"/>
+  <circle cx="188" cy="74" r="5" fill="#FB6F92"/>
+
+  <!-- Outer Camera Lens Ring with aperture depth -->
+  <circle cx="128" cy="132" r="64" fill="none" stroke="#FFE5EC" stroke-width="10" stroke-opacity="0.35"/>
+  <circle cx="128" cy="132" r="50" fill="#202231"/>
+
+  <!-- Optical Heart Lens at Center (Optical weight tuned +3px Y) -->
+  <path d="M128 165C106 147 86 131 86 109C86 91 100 81 114 81C120 81 126 84 128 87C130 84 136 81 142 81C156 81 170 91 170 109C170 131 150 147 128 165Z" fill="url(#lfa-lens)"/>
+
+  <!-- Optical Lens Reflection / Shutter Sparkle -->
+  <circle cx="114" cy="101" r="7" fill="#FFFFFF"/>
+</svg>

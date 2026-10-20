@@ -24,8 +24,13 @@ export default function HomePage() {
       <header className="sticky top-4 z-40 max-w-4xl w-full mx-auto px-4 sm:px-6">
         <div className="rounded-full bg-white/85 backdrop-blur-md border border-[#FB6F92]/20 px-6 py-3.5 flex items-center justify-between shadow-sm shadow-[#FB6F92]/5">
           <div className="flex items-center gap-3">
-            <div className="size-9 rounded-full bg-[#FFE5EC] border border-[#FB6F92]/30 flex items-center justify-center text-[#FB6F92]">
-              <Heart className="size-5 fill-[#FB6F92]" />
+            <div className="size-10 rounded-2xl bg-[#2B2D42] border border-[#FB6F92]/40 flex items-center justify-center shadow-xs overflow-hidden p-1">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/brand/a/logo-a-master.svg"
+                alt="LoveFun Official Logo"
+                className="w-full h-full object-contain"
+              />
             </div>
             <div>
               <span className="font-display font-black tracking-tight text-lg text-[#2B2D42]">
