@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { UserNav } from "@/components/user-nav";
+import { FlashbackPhotoStrip } from "@/components/flashback-photo-strip";
 
 export default function HomePage() {
   return (
@@ -85,37 +86,47 @@ export default function HomePage() {
 
         {/* 3 Dedicated Separated Portals */}
         <div className="space-y-6 max-w-4xl mx-auto">
-          {/* Portal 1: Photobooth Studio */}
+          {/* Portal 1: Photobooth Studio with Live Flashback Strip Preview */}
           <div className="rounded-[2.25rem] p-3 bg-white/90 border border-[#FB6F92]/25 shadow-xl shadow-[#FB6F92]/10 backdrop-blur-md flex flex-col justify-between group hover:border-[#FB6F92]/50 transition duration-300">
-            <div className="rounded-[1.75rem] p-6 bg-[#FFF0F4] border border-[#FB6F92]/20 space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="size-11 rounded-2xl bg-white border border-[#FB6F92]/30 flex items-center justify-center text-[#FB6F92] shadow-xs">
-                  <Camera className="size-5" />
+            <div className="rounded-[1.75rem] p-6 bg-[#FFF0F4] border border-[#FB6F92]/20 space-y-6">
+              <div className="flex flex-col lg:flex-row items-center justify-between gap-8">
+                {/* Left: Studio Information */}
+                <div className="space-y-4 max-w-md">
+                  <div className="flex items-center justify-between">
+                    <div className="size-11 rounded-2xl bg-white border border-[#FB6F92]/30 flex items-center justify-center text-[#FB6F92] shadow-xs">
+                      <Camera className="size-5" />
+                    </div>
+                    <Badge variant="primary" className="font-mono text-[10px] uppercase">
+                      4X1 RETRO STRIP · Y2K GRAIN & TONE
+                    </Badge>
+                  </div>
+
+                  <div className="space-y-1">
+                    <h3 className="font-display font-extrabold text-2xl text-[#2B2D42]">
+                      Photo Strip Studio 2.0
+                    </h3>
+                    <p className="font-sans text-xs sm:text-sm text-[#7D7F9A] leading-relaxed">
+                      Studio foto strip bergaya analog Korea & Flashback Y2K. Pilihan tata letak 3x1, 4x1, dan 2x2 dengan filter film simulasi Skia (*Kodak Gold*, *Fuji Chrome*, *Mono Grain*), frame custom Canva, serta stiker dekorasi bebas.
+                    </p>
+                  </div>
+
+                  <div className="pt-2 flex items-center justify-between">
+                    <span className="font-mono text-xs font-bold text-[#FB6F92]">
+                      NO LOGIN REQUIRED
+                    </span>
+                    <Link href="/booth">
+                      <Button size="md" className="rounded-full font-display font-bold shadow-md shadow-[#FB6F92]/20">
+                        <span>Buka Studio Foto</span>
+                        <ArrowRight className="size-4" />
+                      </Button>
+                    </Link>
+                  </div>
                 </div>
-                <Badge variant="primary" className="font-mono text-[10px] uppercase">
-                  3 S/D 6 GRID POSE · CANVA CUSTOM
-                </Badge>
-              </div>
 
-              <div className="space-y-1">
-                <h3 className="font-display font-extrabold text-2xl text-[#2B2D42]">
-                  Photo Strip Studio 2.0
-                </h3>
-                <p className="font-sans text-xs sm:text-sm text-[#7D7F9A] leading-relaxed">
-                  Studio foto strip bergaya Korea dengan pilihan tata letak 3x1, 4x1, 2x2, dan 2x3. Dilengkapi fitur retake per pose, import frame custom dari Canva, mode Live Photo animasi GIF, dan stiker dekorasi bebas.
-                </p>
-              </div>
-
-              <div className="pt-2 flex items-center justify-between">
-                <span className="font-mono text-xs font-bold text-[#FB6F92]">
-                  NO LOGIN REQUIRED
-                </span>
-                <Link href="/booth">
-                  <Button size="md" className="rounded-full font-display font-bold shadow-md shadow-[#FB6F92]/20">
-                    <span>Buka Studio Foto</span>
-                    <ArrowRight className="size-4" />
-                  </Button>
-                </Link>
+                {/* Right: Interactive ByFlashback Retro Strip Component */}
+                <div className="w-full lg:w-auto flex justify-center py-2">
+                  <FlashbackPhotoStrip />
+                </div>
               </div>
             </div>
           </div>
