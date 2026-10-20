@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="100%" height="100%">
+  <title>LoveFun Brand Mark - Concept C (Interlocking Letters L and F)</title>
+  <defs>
+    <linearGradient id="lfc-l" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FB6F92"/>
+      <stop offset="100%" stop-color="#E11D48"/>
+    </linearGradient>
+    <linearGradient id="lfc-f" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#FFE5EC"/>
+    </linearGradient>
+  </defs>
+
+  <!-- High Contrast Dark Container -->
+  <rect x="24" y="24" width="208" height="208" rx="54" fill="#2B2D42"/>
+
+  <!-- Four Camera Viewfinder Reticle Corners -->
+  <path d="M52 48H44V56" fill="none" stroke="#FFE5EC" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity="0.4"/>
+  <path d="M204 48H212V56" fill="none" stroke="#FFE5EC" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity="0.4"/>
+  <path d="M52 208H44V200" fill="none" stroke="#FFE5EC" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity="0.4"/>
+  <path d="M204 208H212V200" fill="none" stroke="#FFE5EC" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity="0.4"/>
+
+  <!-- Distinct Letter L (Bold Coral Stem & Foot, positioned on Left & Bottom) -->
+  <path d="M68 62V190C68 194 72 198 76 198H152" fill="none" stroke="url(#lfc-l)" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Distinct Letter F (Crisp White Solid Strokes Overlapping at Top-Right) -->
+  <!-- F Vertical Stem -->
+  <path d="M124 58V154" fill="none" stroke="#FFFFFF" stroke-width="20" stroke-linecap="round"/>
+  <!-- F Top Bar -->
+  <path d="M124 68H188" fill="none" stroke="#FFFFFF" stroke-width="20" stroke-linecap="round"/>
+  <!-- F Middle Bar -->
+  <path d="M124 112H168" fill="none" stroke="#FFFFFF" stroke-width="20" stroke-linecap="round"/>
+
+  <!-- Sparkle Flash Accent at Top Corner of F -->
+  <circle cx="188" cy="68" r="6" fill="#FB6F92"/>
+</svg>

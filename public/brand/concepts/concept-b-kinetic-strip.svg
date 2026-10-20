@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="100%" height="100%">
+  <title>LoveFun Brand Mark - Concept B (Kinetic Dual Strip)</title>
+  <defs>
+    <linearGradient id="lfb-coral" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FB6F92"/>
+      <stop offset="100%" stop-color="#E11D48"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Clean Rounded Square Base -->
+  <rect x="24" y="24" width="208" height="208" rx="52" fill="#FFF9FB" stroke="#FB6F92" stroke-width="8" stroke-opacity="0.3"/>
+
+  <!-- Left Photo Frame (Ink Violet Silhouette) -->
+  <rect x="52" y="60" width="72" height="116" rx="10" fill="#2B2D42"/>
+  <rect x="62" y="70" width="52" height="58" rx="6" fill="#FFF9FB"/>
+  <circle cx="88" cy="99" r="14" fill="#5A4E7A"/>
+  <circle cx="88" cy="99" r="6" fill="#FFF9FB"/>
+
+  <!-- Right Photo Frame Interlocking & Overlapping (Vibrant Rose) -->
+  <rect x="96" y="80" width="72" height="116" rx="10" fill="url(#lfb-coral)"/>
+  <rect x="106" y="90" width="52" height="58" rx="6" fill="#FFF9FB"/>
+  <!-- Heart Lens Inside Right Frame -->
+  <path d="M132 126C122 115 112 106 112 98C112 91 117 87 123 87C127 87 130 89 132 92C134 89 137 87 141 87C147 87 152 91 152 98C152 106 142 115 132 126Z" fill="#FB6F92"/>
+</svg>
