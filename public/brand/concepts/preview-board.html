@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #FFF9FB;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      padding: 40px;
+      color: #2B2D42;
+      width: 1440px;
+      height: 680px;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 36px;
+    }
+    .badge {
+      display: inline-block;
+      background: #FFE5EC;
+      color: #FB6F92;
+      font-family: monospace;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      padding: 6px 16px;
+      border-radius: 999px;
+      margin-bottom: 8px;
+    }
+    h1 {
+      font-size: 26px;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 32px;
+      max-width: 1320px;
+      margin: 0 auto;
+    }
+    .card {
+      background: #FFFFFF;
+      border: 1px solid rgba(251, 111, 146, 0.25);
+      border-radius: 28px;
+      padding: 24px;
+      text-align: center;
+      box-shadow: 0 10px 25px -5px rgba(251, 111, 146, 0.1);
+    }
+    .img-wrap {
+      width: 240px;
+      height: 240px;
+      margin: 0 auto 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .img-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+    .title {
+      font-size: 17px;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+    .rec {
+      color: #E11D48;
+      font-size: 11px;
+      font-weight: 700;
+      font-family: monospace;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+      display: block;
+    }
+    .desc {
+      font-size: 12px;
+      color: #7D7F9A;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="badge">LoveFun Identity System · Brand Mark Exploration</div>
+    <h1>Eksplorasi Konsep Logo LoveFun</h1>
+  </div>
+
+  <div class="grid">
+    <!-- Concept A -->
+    <div class="card">
+      <span class="rec">Pilihan Rekomendasi Utama</span>
+      <div class="img-wrap">
+        <img src="renders/concept-a-twin-shutter.png" alt="Concept A">
+      </div>
+      <div class="title">A — Heart Aperture Camera</div>
+      <p class="desc">Bodi kamera dark slate dengan lensa konsentris berinti hati koral, tombol shutter pink, dan sensor flash.</p>
+    </div>
+
+    <!-- Concept B -->
+    <div class="card">
+      <span class="rec" style="color: #7D7F9A;">Konsep Playful</span>
+      <div class="img-wrap">
+        <img src="renders/concept-b-kinetic-strip.png" alt="Concept B">
+      </div>
+      <div class="title">B — Kinetic Dual Strip</div>
+      <p class="desc">Dua lembar foto polaroid strip analog saling mengunci dan bertumpuk miring dengan jendela cut-out hati.</p>
+    </div>
+
+    <!-- Concept C -->
+    <div class="card">
+      <span class="rec" style="color: #7D7F9A;">Konsep Modern Tech</span>
+      <div class="img-wrap">
+        <img src="renders/concept-c-ribbon-monogram.png" alt="Concept C">
+      </div>
+      <div class="title">C — Precision LF Monogram</div>
+      <p class="desc">Monogram inisial L (koral) dan F (putih) saling mengunci rapi dengan 4 siku viewfinder kamera.</p>
+    </div>
+  </div>
+</body>
+</html>
