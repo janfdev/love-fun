@@ -36,9 +36,6 @@ export default function HomePage() {
               <span className="font-display font-black tracking-tight text-lg text-[#2B2D42]">
                 LoveFun
               </span>
-              <span className="hidden sm:inline-block ml-2 text-xs font-mono text-[#7D7F9A]">
-                LOVE IS FUN // V2.0
-              </span>
             </div>
           </div>
 
